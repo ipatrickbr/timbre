@@ -19,10 +19,11 @@ The icon uses the South China Morning Post palette: navy ground, gold recording 
 installation and use, with a screenshot of every button. It is written for the
 SCMP newsroom and asks readers not to pass the app outside it.
 
-It also carries a page on using the tool within the newsroom's generative AI
-policy: the transcript is not a citable source, quotes are checked against the
-audio before publication, editors are told when AI has been involved, and the
-whole thing runs locally so no material reaches a third party.
+It also carries a page on the **SCMP Editorial Generative AI Policy**, setting
+out where Timbre already answers what the policy asks for, chiefly that nothing
+is uploaded and that the audio, transcript and timestamps stay together, and
+what still falls to the reporter: the transcript is not a citable source, quotes
+are confirmed against the audio, and editors are told when AI has been involved.
 
 ## Requirements
 
