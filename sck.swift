@@ -88,6 +88,12 @@ final class SystemAudioCapturer: NSObject, SCStreamOutput, SCStreamDelegate {
     func finish() async -> (seconds: Double, error: Error?) {
         if let stream { try? await stream.stopCapture() }
         stream = nil
+        return closeFile()
+    }
+
+    /// Kept separate and synchronous: taking a lock inside an async context is
+    /// an error under the Swift 6 language mode.
+    private func closeFile() -> (seconds: Double, error: Error?) {
         lock.lock()
         defer { lock.unlock() }
         file = nil
