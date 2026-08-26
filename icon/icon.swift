@@ -92,9 +92,9 @@ let heights: [CGFloat] = simplified
     : [0.26, 0.50, 0.78, 1.0, 0.68, 0.88, 0.44, 0.28]
 let barWidth: CGFloat = simplified ? 88 : 50
 let gap: CGFloat = simplified ? 44 : 30
-// Gold sits on the three central bars — the tallest part of the wave — so the
-// SCMP pairing reads as deliberate without turning the icon into stripes.
-let goldBars: Set<Int> = simplified ? [1, 2, 3] : [3, 4, 5]
+// The wave is gold, with the tallest bar left white: the SCMP pairing stays
+// obvious and the white bar reads as the playhead.
+let whiteBars: Set<Int> = simplified ? [2] : [3]
 let totalWidth = CGFloat(heights.count) * barWidth + CGFloat(heights.count - 1) * gap
 var x = body.midX - totalWidth / 2
 let maxHeight = body.height * 0.52
@@ -106,7 +106,7 @@ for (index, h) in heights.enumerated() {
     let barHeight = max(maxHeight * h, barWidth)
     let bar = CGRect(x: x, y: centerY - barHeight / 2, width: barWidth, height: barHeight)
     let capsule = CGPath(roundedRect: bar, cornerWidth: barWidth / 2, cornerHeight: barWidth / 2, transform: nil)
-    if goldBars.contains(index) {
+    if !whiteBars.contains(index) {
         ctx.saveGState()
         ctx.addPath(capsule)
         ctx.clip()
