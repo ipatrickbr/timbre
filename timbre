@@ -1,0 +1,83 @@
+#!/bin/bash
+# timbre — records the audio playing inside your Mac and produces an MP3.
+# Capture happens digitally: nothing has to come out of the speakers.
+set -euo pipefail
+
+# Resolve symlinks to find the tool's real directory.
+SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE" ]]; do
+    TARGET="$(readlink "$SOURCE")"
+    case "$TARGET" in
+        /*) SOURCE="$TARGET" ;;
+        *)  SOURCE="$(dirname "$SOURCE")/$TARGET" ;;
+    esac
+done
+DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+
+APP="$HOME/Applications/Timbre.app"
+REC="$DIR/Timbre.app/Contents/MacOS/timbre"
+[[ -x "$REC" ]] || REC="$APP/Contents/MacOS/timbre"
+
+# The MP3 encoder ships inside the app bundle.
+LAME="$DIR/vendor/bin/lame"
+[[ -x "$LAME" ]] || LAME="$APP/Contents/Resources/lame"
+
+BITRATE="${TIMBRE_BITRATE:-192}"
+
+# Follow the same language the app is pinned to, so a machine set to Portuguese
+# gets Portuguese in the terminal too.
+if defaults read local.timbre AppleLanguages 2>/dev/null | grep -qi "pt"; then
+    msg_nobuild="gravador não compilado — rode: $DIR/build.sh"
+    msg_unknown="opção desconhecida:"
+    msg_done="pronto:"
+    msg_noenc="nenhum encoder MP3 encontrado — o áudio ficou em WAV:"
+else
+    msg_nobuild="recorder not built — run: $DIR/build.sh"
+    msg_unknown="unknown option:"
+    msg_done="done:"
+    msg_noenc="no MP3 encoder found — audio kept as WAV:"
+fi
+
+[[ -x "$REC" ]] || { echo "$msg_nobuild" >&2; exit 1; }
+
+output=""
+keep_wav=false
+rec_args=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d|--duration) rec_args+=(-d "$2"); shift 2 ;;
+        --mute|--sck) rec_args+=("$1"); shift ;;
+        --keep-wav) keep_wav=true; shift ;;
+        --check) exec "$REC" --check ;;
+        -b|--bitrate) BITRATE="$2"; shift 2 ;;
+        -h|--help) exec "$REC" --help ;;
+        -*) echo "$msg_unknown $1" >&2; exit 2 ;;
+        *)  output="$1"; shift ;;
+    esac
+done
+
+[[ -n "$output" ]] || output="recording-$(date +%Y%m%d-%H%M%S).mp3"
+case "$output" in *.mp3|*.wav) ;; *) output="$output.mp3" ;; esac
+
+if [[ "$output" == *.wav ]]; then
+    wav="$output"
+else
+    wav="${output%.mp3}.wav"
+fi
+
+if ! "$REC" -o "$wav" ${rec_args[@]+"${rec_args[@]}"}; then
+    rm -f "$wav"
+    exit 1
+fi
+[[ "$output" == *.wav ]] && exit 0
+
+# macOS decodes MP3 but cannot encode it, so we need LAME.
+if [[ -x "$LAME" ]]; then
+    "$LAME" --quiet -b "$BITRATE" "$wav" "$output"
+    $keep_wav || rm -f "$wav"
+    echo "$msg_done $output ($(du -h "$output" | cut -f1))"
+else
+    echo "$msg_noenc $wav" >&2
+    exit 1
+fi

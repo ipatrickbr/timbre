@@ -1,0 +1,59 @@
+/* Barra de menus */
+"tooltip.idle" = "Clique para gravar o áudio do Mac";
+"tooltip.recording" = "Clique para parar e salvar o MP3";
+"tooltip.paused" = "Gravação pausada — clique para retomar ou finalizar";
+"tooltip.saving" = "Convertendo a gravação para MP3";
+"status.saving" = "salvando…";
+"status.paused" = "pausado";
+"status.nosound" = "sem som";
+
+/* Menu */
+"menu.start" = "Iniciar gravação";
+"menu.pause" = "Pausar gravação";
+"menu.resume" = "Retomar gravação";
+"menu.finish" = "Finalizar e salvar";
+"menu.folder" = "Abrir pasta das gravações";
+"menu.quit" = "Sair";
+
+/* Diálogo de início */
+"ask.title" = "Como você quer gravar?";
+"ask.body" = "O Timbre captura o som por dentro do Mac, sem microfone. O volume da saída não altera o que é gravado.";
+"ask.listen" = "Gravar ouvindo";
+"ask.mute" = "Gravar em silêncio";
+"ask.cancel" = "Cancelar";
+
+/* Painel de conversão */
+"convert.title" = "Convertendo para MP3";
+"convert.preparing" = "Preparando…";
+"convert.remaining" = "%d%% — cerca de %@ restantes";
+"time.second" = "%d segundo";
+"time.seconds" = "%d segundos";
+"time.minute" = "%d minuto";
+"time.minutes" = "%d minutos";
+
+/* Arquivos */
+"filename.prefix" = "Gravação";
+"filename.dateformat" = "yyyy-MM-dd 'às' HH.mm.ss";
+
+/* Erros */
+"error.permission" = "Ative o Timbre em Ajustes do Sistema › Privacidade e Segurança › Gravação de Tela e Áudio do Sistema.";
+"error.start.title" = "Não consegui começar a gravar";
+"error.failed" = "A gravação falhou";
+"error.nothing.title" = "Nada foi gravado";
+"error.nothing.body" = "Nenhum som estava tocando no Mac durante a gravação.";
+"error.mp3.title" = "Não consegui converter para MP3";
+"error.mp3.body" = "O áudio foi salvo em WAV, sem perdas: %@";
+
+/* Linha de comando */
+"cli.error" = "erro:";
+"cli.unknown" = "opção desconhecida:";
+"cli.saved" = "gravado %.1fs em %@";
+"cli.nothing" = "nenhum áudio foi capturado — nada estava tocando no Mac.";
+"cli.mode.audible" = "gravando, o áudio continua audível";
+"cli.mode.muted" = "gravando, sem som nos alto-falantes";
+"cli.limit" = " (%.0fs)";
+"cli.until.ctrlc" = " — Ctrl+C para parar";
+"check.permission" = "gravação de tela e áudio do sistema:";
+"check.granted" = "AUTORIZADO";
+"check.missing" = "NÃO AUTORIZADO";
+"cli.help" = "timbre — grava o áudio que está tocando no Mac\n\n  -o, --output ARQUIVO   arquivo WAV de saída (padrão: recording.wav)\n  -d, --duration SEG     para sozinho após SEG segundos\n      --mute             grava sem som nos alto-falantes\n      --menubar          abre o ícone na barra de menus\n      --sck              usa ScreenCaptureKit em vez do process tap\n      --check            mostra o estado das permissões\n\nO áudio é capturado por dentro do sistema, sem microfone: você continua\nouvindo normalmente, inclusive de fones, e o volume não afeta a gravação.";
