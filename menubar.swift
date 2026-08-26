@@ -3,6 +3,37 @@ import AVFoundation
 
 private func t(_ key: String) -> String { NSLocalizedString(key, comment: "") }
 
+// South China Morning Post palette. Gold alone disappears against a light menu
+// bar and navy alone disappears against a dark one, so the accent swaps with
+// the appearance — both halves of the masthead pairing.
+extension NSColor {
+    static let scmpGold = NSColor(srgbRed: 1.0, green: 0.78, blue: 0.0, alpha: 1)
+    static let scmpNavy = NSColor(srgbRed: 0.04, green: 0.14, blue: 0.32, alpha: 1)
+
+    static let scmpAccent = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .scmpGold : .scmpNavy
+    }
+}
+
+/// Progress bar painted in the SCMP accent instead of the system blue.
+final class AccentProgressBar: NSView {
+    var fraction: Double = 0 {
+        didSet { needsDisplay = true }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let radius = bounds.height / 2
+        NSColor.tertiaryLabelColor.setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: radius, yRadius: radius).fill()
+
+        let filled = bounds.width * min(max(fraction, 0), 1)
+        guard filled > 0 else { return }
+        NSColor.scmpAccent.setFill()
+        NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: max(filled, bounds.height), height: bounds.height),
+                     xRadius: radius, yRadius: radius).fill()
+    }
+}
+
 // MARK: - Conversion progress panel
 
 /// Floating panel, macOS style, showing conversion progress. A long talk takes
@@ -10,7 +41,7 @@ private func t(_ key: String) -> String { NSLocalizedString(key, comment: "") }
 /// a freeze.
 final class ConversionPanel {
     private var panel: NSPanel?
-    private var bar: NSProgressIndicator?
+    private var bar: AccentProgressBar?
     private var status: NSTextField?
 
     func show(fileName: String) {
@@ -42,12 +73,7 @@ final class ConversionPanel {
         name.frame = NSRect(x: 20, y: 72, width: 360, height: 16)
         blur.addSubview(name)
 
-        let bar = NSProgressIndicator(frame: NSRect(x: 20, y: 46, width: 360, height: 8))
-        bar.style = .bar
-        bar.isIndeterminate = false
-        bar.minValue = 0
-        bar.maxValue = 1
-        bar.doubleValue = 0
+        let bar = AccentProgressBar(frame: NSRect(x: 20, y: 46, width: 360, height: 8))
         blur.addSubview(bar)
 
         let status = NSTextField(labelWithString: t("convert.preparing"))
@@ -65,7 +91,7 @@ final class ConversionPanel {
     }
 
     func update(fraction: Double, remaining: TimeInterval?) {
-        bar?.doubleValue = min(max(fraction, 0), 1)
+        bar?.fraction = fraction
         let pct = Int((fraction * 100).rounded())
         if let remaining, remaining > 1 {
             status?.stringValue = String(format: t("convert.remaining"), pct, Self.humanize(remaining))
@@ -155,7 +181,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     private func showIdle() {
         guard let button = statusItem.button else { return }
-        button.image = symbol("waveform", "gravar")
+        button.image = symbol("waveform", "record")
         button.contentTintColor = nil
         button.title = ""
         button.toolTip = t("tooltip.idle")
@@ -163,21 +189,21 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     private func showRecording() {
         guard let button = statusItem.button else { return }
-        button.image = symbol("record.circle", "gravando")
-        button.contentTintColor = .systemRed
+        button.image = symbol("record.circle", "recording")
+        button.contentTintColor = .scmpAccent
         button.toolTip = t("tooltip.recording")
     }
 
     private func showPaused() {
         guard let button = statusItem.button else { return }
-        button.image = symbol("pause.circle", "pausado")
-        button.contentTintColor = .systemOrange
+        button.image = symbol("pause.circle", "paused")
+        button.contentTintColor = .secondaryLabelColor
         button.toolTip = t("tooltip.paused")
     }
 
     private func showSaving() {
         guard let button = statusItem.button else { return }
-        button.image = symbol("arrow.down.circle", "salvando")
+        button.image = symbol("arrow.down.circle", "saving")
         button.contentTintColor = nil
         button.title = " " + t("status.saving")
         button.toolTip = t("tooltip.saving")
