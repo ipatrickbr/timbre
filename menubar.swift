@@ -3,6 +3,14 @@ import AVFoundation
 
 private func t(_ key: String) -> String { NSLocalizedString(key, comment: "") }
 
+/// "3 minutes", "45 seconds": used by both the progress panel and the prompt.
+private func humanDuration(_ seconds: TimeInterval) -> String {
+    let s = max(Int(seconds.rounded()), 1)
+    if s < 60 { return String(format: t(s == 1 ? "time.second" : "time.seconds"), s) }
+    let m = max(s / 60, 1)
+    return String(format: t(m == 1 ? "time.minute" : "time.minutes"), m)
+}
+
 // South China Morning Post palette. Gold alone disappears against a light menu
 // bar and navy alone disappears against a dark one, so the accent swaps with
 // the appearance — both halves of the masthead pairing.
@@ -102,7 +110,7 @@ final class ConversionPanel {
         bar?.fraction = fraction
         let pct = Int((fraction * 100).rounded())
         if let remaining, remaining > 1 {
-            status?.stringValue = String(format: t("convert.remaining"), pct, Self.humanize(remaining))
+            status?.stringValue = String(format: t("convert.remaining"), pct, humanDuration(remaining))
         } else {
             status?.stringValue = "\(pct)%"
         }
@@ -116,12 +124,6 @@ final class ConversionPanel {
         title = nil
     }
 
-    private static func humanize(_ seconds: TimeInterval) -> String {
-        let s = Int(seconds.rounded())
-        if s < 60 { return String(format: t(s == 1 ? "time.second" : "time.seconds"), s) }
-        let m = s / 60
-        return String(format: t(m == 1 ? "time.minute" : "time.minutes"), m)
-    }
 }
 
 // MARK: - Menu bar icon
@@ -136,6 +138,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var currentWAV: URL?
     private var busy = false
     private var startSound: AVAudioPlayer?
+    private var transcriptionTicker: Timer?
+    private var reportedProgress: Double = 0
     private var stopSound: AVAudioPlayer?
 
     private var destinationFolder: URL {
@@ -424,28 +428,52 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             NSWorkspace.shared.activateFileViewerSelecting([mp3])
             return
         }
+        runTranscription(wav: wav, mp3: mp3, seconds: seconds)
+    }
 
+    /// Kept separate from the prompt so the progress behaviour can be exercised
+    /// without a modal in the way.
+    func runTranscription(wav: URL, mp3: URL, seconds: Double) {
         conversion.show(fileName: mp3.lastPathComponent)
         conversion.startTranscription()
         let started = Date()
+        reportedProgress = 0
+
+        // whisper.cpp only reports after each 30-second chunk of audio, which
+        // leaves the bar frozen in between. We move it along on the clock and
+        // snap to the real figure whenever one arrives.
+        let estimate = max(seconds / 8, 4)
+        transcriptionTicker = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let elapsed = Date().timeIntervalSince(started)
+            let byClock = min(elapsed / estimate, 0.97)
+            let shown = max(self.reportedProgress, byClock)
+            let remaining = shown > 0.02 ? elapsed / shown - elapsed : estimate
+            self.conversion.update(fraction: shown, remaining: remaining)
+        }
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let ok = Transcriber.run(audio: wav, outputBase: mp3.deletingPathExtension()) { fraction in
-                let elapsed = Date().timeIntervalSince(started)
-                let remaining = fraction > 0.03 ? elapsed / fraction - elapsed : nil
-                DispatchQueue.main.async {
-                    self?.conversion.update(fraction: fraction, remaining: remaining)
-                }
+                DispatchQueue.main.async { self?.reportedProgress = fraction }
             }
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.transcriptionTicker?.invalidate()
+                self.transcriptionTicker = nil
+                self.conversion.update(fraction: 1, remaining: nil)
                 self.conversion.close()
                 self.busy = false
                 self.showIdle()
                 try? FileManager.default.removeItem(at: wav)
+
+                // Reveal the audio together with its transcript, so the pair is
+                // visible at once in the same folder.
                 let transcript = mp3.deletingPathExtension().appendingPathExtension("txt")
-                let reveal = FileManager.default.fileExists(atPath: transcript.path) && ok
-                NSWorkspace.shared.activateFileViewerSelecting([reveal ? transcript : mp3])
+                var reveal = [mp3]
+                if ok, FileManager.default.fileExists(atPath: transcript.path) {
+                    reveal.append(transcript)
+                }
+                NSWorkspace.shared.activateFileViewerSelecting(reveal)
                 if !ok { self.showError(t("error.transcribe.title"), t("error.transcribe.body")) }
             }
         }
@@ -458,7 +486,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = t("ask.transcribe.title")
         alert.informativeText = String(format: t("ask.transcribe.body"),
-                                       Self.humanDuration(seconds / 8))
+                                       humanDuration(seconds / 8))
         alert.alertStyle = .informational
         if let icon = NSApp.applicationIconImage { alert.icon = icon }
         alert.addButton(withTitle: t("ask.transcribe.yes"))
@@ -466,12 +494,6 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    private static func humanDuration(_ seconds: TimeInterval) -> String {
-        let s = max(Int(seconds.rounded()), 1)
-        if s < 60 { return String(format: t(s == 1 ? "time.second" : "time.seconds"), s) }
-        let m = max(s / 60, 1)
-        return String(format: t(m == 1 ? "time.minute" : "time.minutes"), m)
-    }
 
     /// Encodes with the bundled LAME, reporting progress. LAME writes lines
     /// like "1234/5678 ( 22%)" to stderr, which become the bar's fraction.

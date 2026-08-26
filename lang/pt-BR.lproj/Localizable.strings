@@ -59,8 +59,6 @@
 "cli.help" = "timbre — grava o áudio que está tocando no Mac\n\n  -o, --output ARQUIVO   arquivo WAV de saída (padrão: recording.wav)\n  -d, --duration SEG     para sozinho após SEG segundos\n      --mute             grava sem som nos alto-falantes\n      --menubar          abre o ícone na barra de menus\n      --sck              usa ScreenCaptureKit em vez do process tap\n      --check            mostra o estado das permissões\n\nO áudio é capturado por dentro do sistema, sem microfone: você continua\nouvindo normalmente, inclusive de fones, e o volume não afeta a gravação.";
 
 /* Transcrição */
-"menu.transcribe" = "Transcrever após gravar";
-"menu.transcribe.missing" = "Rode ./vendor/build-whisper.sh uma vez para ativar a transcrição";
 "transcribe.title" = "Transcrevendo";
 "transcribe.starting" = "Iniciando…";
 "ask.transcribe.title" = "Transcrever esta gravação?";

@@ -59,8 +59,6 @@
 "cli.help" = "timbre — records the audio playing inside your Mac\n\n  -o, --output FILE      output WAV file (default: recording.wav)\n  -d, --duration SEC     stop automatically after SEC seconds\n      --mute             record without sound on the speakers\n      --menubar          open the menu bar icon\n      --sck              use ScreenCaptureKit instead of the process tap\n      --check            show the permission state\n\nAudio is captured from inside the system, with no microphone: you keep\nhearing it normally, headphones included, and the volume does not affect\nthe recording.";
 
 /* Transcription */
-"menu.transcribe" = "Transcribe after recording";
-"menu.transcribe.missing" = "Run ./vendor/build-whisper.sh once to enable transcription";
 "transcribe.title" = "Transcribing";
 "transcribe.starting" = "Starting…";
 "ask.transcribe.title" = "Transcribe this recording?";
