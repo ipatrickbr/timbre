@@ -69,17 +69,21 @@ acceleration. Install it once:
 ./vendor/build-whisper.sh
 ```
 
-That builds the engine and downloads the `large-v3-turbo` model (~1.5 GB) into
-`~/Library/Application Support/Timbre/whisper`. Pass another model name as an
-argument to use a smaller one (`small`, `base`, `tiny`).
+That builds the engine and downloads two models into `~/Library/Application
+Support/Timbre/whisper`: `large-v3-turbo` (~1.5 GB) for transcription, and
+`small` (~470 MB) for translation. The turbo models are trained for
+transcription only and silently return the original language when asked to
+translate, which is why a second model is needed.
 
 After that, every time a recording finishes Timbre asks whether you want a
 transcript, with an estimate of how long it will take. Say yes and you get a
 `.txt` next to the MP3, plus a `.srt` with timestamps. Say no and nothing else
 happens.
 
-Measured on an M4: **8x faster than real time** — an hour of audio transcribes
-in about seven minutes. Language is auto-detected.
+Measured on an M4: **8x faster than real time**, so an hour of audio transcribes
+in about seven minutes. The language is detected automatically, and when it is
+not English, Timbre offers an English translation as a second pass. Treat those
+translations as a way to navigate the material rather than as quotable text.
 
 The point is not only convenience. Uploading audio to a cloud transcription
 service means handing the material to a third party; here nothing leaves the

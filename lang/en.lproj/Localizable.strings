@@ -67,3 +67,8 @@
 "ask.transcribe.no" = "Not now";
 "error.transcribe.title" = "Could not transcribe";
 "error.transcribe.body" = "The recording itself was saved. You can try again by recording a short test, or tell Igor what happened.";
+"ask.translate.title" = "Translate to English?";
+"ask.translate.body" = "This recording is in %@. Timbre can also produce an English version, which takes about another %@.";
+"ask.translate.yes" = "Translate";
+"ask.translate.no" = "No thanks";
+"translate.title" = "Translating to English";

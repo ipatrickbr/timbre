@@ -67,3 +67,8 @@
 "ask.transcribe.no" = "Agora não";
 "error.transcribe.title" = "Não consegui transcrever";
 "error.transcribe.body" = "A gravação em si foi salva. Você pode tentar de novo com uma gravação curta de teste.";
+"ask.translate.title" = "Traduzir para o inglês?";
+"ask.translate.body" = "Esta gravação está em %@. O Timbre pode gerar também uma versão em inglês, o que leva mais uns %@.";
+"ask.translate.yes" = "Traduzir";
+"ask.translate.no" = "Não, obrigado";
+"translate.title" = "Traduzindo para o inglês";

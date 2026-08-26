@@ -106,6 +106,12 @@ final class ConversionPanel {
         status?.stringValue = t("transcribe.starting")
     }
 
+    func startTranslation() {
+        title?.stringValue = t("translate.title")
+        bar?.fraction = 0
+        status?.stringValue = t("transcribe.starting")
+    }
+
     func update(fraction: Double, remaining: TimeInterval?) {
         bar?.fraction = fraction
         let pct = Int((fraction * 100).rounded())
@@ -453,30 +459,97 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let ok = Transcriber.run(audio: wav, outputBase: mp3.deletingPathExtension()) { fraction in
+            let outcome = Transcriber.run(audio: wav, outputBase: mp3.deletingPathExtension()) { fraction in
                 DispatchQueue.main.async { self?.reportedProgress = fraction }
             }
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.transcriptionTicker?.invalidate()
-                self.transcriptionTicker = nil
-                self.conversion.update(fraction: 1, remaining: nil)
+                self.stopTicker()
                 self.conversion.close()
-                self.busy = false
-                self.showIdle()
-                try? FileManager.default.removeItem(at: wav)
 
-                // Reveal the audio together with its transcript, so the pair is
-                // visible at once in the same folder.
-                let transcript = mp3.deletingPathExtension().appendingPathExtension("txt")
-                var reveal = [mp3]
-                if ok, FileManager.default.fileExists(atPath: transcript.path) {
-                    reveal.append(transcript)
+                guard outcome.succeeded else {
+                    self.finishUp(wav: wav, mp3: mp3, extras: [])
+                    self.showError(t("error.transcribe.title"), t("error.transcribe.body"))
+                    return
                 }
-                NSWorkspace.shared.activateFileViewerSelecting(reveal)
-                if !ok { self.showError(t("error.transcribe.title"), t("error.transcribe.body")) }
+
+                let transcript = mp3.deletingPathExtension().appendingPathExtension("txt")
+                // Whisper can render a non-English recording into English, which
+                // is a second pass over the same audio.
+                if let language = outcome.language, language != "en", Transcriber.canTranslate,
+                   self.askTranslate(language: language, seconds: seconds) {
+                    self.runTranslation(wav: wav, mp3: mp3, seconds: seconds, transcript: transcript)
+                } else {
+                    self.finishUp(wav: wav, mp3: mp3, extras: [transcript])
+                }
             }
         }
+    }
+
+    private func runTranslation(wav: URL, mp3: URL, seconds: Double, transcript: URL) {
+        let english = mp3.deletingPathExtension().path + " (English)"
+        conversion.show(fileName: mp3.lastPathComponent)
+        conversion.startTranslation()
+        let started = Date()
+        reportedProgress = 0
+
+        let estimate = max(seconds / 8, 4)
+        transcriptionTicker = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let elapsed = Date().timeIntervalSince(started)
+            let shown = max(self.reportedProgress, min(elapsed / estimate, 0.97))
+            let remaining = shown > 0.02 ? elapsed / shown - elapsed : estimate
+            self.conversion.update(fraction: shown, remaining: remaining)
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let outcome = Transcriber.run(audio: wav, outputBase: URL(fileURLWithPath: english),
+                                          translate: true) { fraction in
+                DispatchQueue.main.async { self?.reportedProgress = fraction }
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.stopTicker()
+                self.conversion.close()
+                var extras = [transcript]
+                let englishFile = URL(fileURLWithPath: english + ".txt")
+                if outcome.succeeded, FileManager.default.fileExists(atPath: englishFile.path) {
+                    extras.append(englishFile)
+                }
+                self.finishUp(wav: wav, mp3: mp3, extras: extras)
+            }
+        }
+    }
+
+    private func stopTicker() {
+        transcriptionTicker?.invalidate()
+        transcriptionTicker = nil
+        conversion.update(fraction: 1, remaining: nil)
+    }
+
+    /// Drops the working WAV, restores the icon and reveals what was produced.
+    private func finishUp(wav: URL, mp3: URL, extras: [URL]) {
+        busy = false
+        showIdle()
+        try? FileManager.default.removeItem(at: wav)
+        let existing = extras.filter { FileManager.default.fileExists(atPath: $0.path) }
+        NSWorkspace.shared.activateFileViewerSelecting([mp3] + existing)
+    }
+
+    /// Offers an English version when the recording turned out to be in another
+    /// language. Costs a second pass, so the estimate is shown up front.
+    private func askTranslate(language: String, seconds: Double) -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+        let name = Locale.current.localizedString(forLanguageCode: language) ?? language
+        let alert = NSAlert()
+        alert.messageText = t("ask.translate.title")
+        alert.informativeText = String(format: t("ask.translate.body"),
+                                       name, humanDuration(seconds / 8))
+        alert.alertStyle = .informational
+        if let icon = NSApp.applicationIconImage { alert.icon = icon }
+        alert.addButton(withTitle: t("ask.translate.yes"))
+        alert.addButton(withTitle: t("ask.translate.no"))
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     /// Transcription runs at roughly eight times real time on Apple Silicon,

@@ -8,6 +8,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 MODEL="${1:-large-v3-turbo}"
+# The turbo models transcribe beautifully but cannot translate, so a second,
+# smaller model is installed alongside for English translation.
+TRANSLATION_MODEL="small"
 DEST="$HOME/Library/Application Support/Timbre/whisper"
 CMAKE_VERSION="4.4.3"
 
@@ -45,11 +48,17 @@ if [[ ! -f "models/ggml-$MODEL.bin" ]]; then
     bash models/download-ggml-model.sh "$MODEL" >/dev/null
 fi
 
+if [[ "$MODEL" == *turbo* && ! -f "models/ggml-$TRANSLATION_MODEL.bin" ]]; then
+    echo "Downloading the $TRANSLATION_MODEL model for translation (~470 MB)…"
+    bash models/download-ggml-model.sh "$TRANSLATION_MODEL" >/dev/null
+fi
+
 echo "Installing…"
 mkdir -p "$DEST/models"
 cp build/bin/whisper-cli "$DEST/"
 cp build/bin/*.dylib "$DEST/"
 cp "models/ggml-$MODEL.bin" "$DEST/models/"
+[[ -f "models/ggml-$TRANSLATION_MODEL.bin" ]] && cp "models/ggml-$TRANSLATION_MODEL.bin" "$DEST/models/"
 
 cd ..
 echo "Transcription ready: $DEST"
