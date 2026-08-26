@@ -489,11 +489,11 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     /// Asked once, before the first transcription on a machine.
     private func askDownload() -> Bool {
         NSApp.activate(ignoringOtherApps: true)
-        let size = ByteCountFormatter.string(fromByteCount: ModelDownloader.totalBytes,
-                                             countStyle: .file)
         let alert = NSAlert()
         alert.messageText = t("ask.download.title")
-        alert.informativeText = String(format: t("ask.download.body"), size)
+        // A plain "2 GB" reads better than a byte formatter, which follows the
+        // region and can print a decimal comma inside an English sentence.
+        alert.informativeText = t("ask.download.body")
         alert.alertStyle = .informational
         if let icon = NSApp.applicationIconImage { alert.icon = icon }
         alert.addButton(withTitle: t("ask.download.yes"))

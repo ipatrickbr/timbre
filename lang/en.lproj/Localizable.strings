@@ -73,7 +73,7 @@
 "ask.translate.no" = "No thanks";
 "translate.title" = "Translating to English";
 "ask.download.title" = "Download the language model?";
-"ask.download.body" = "Transcribing needs a one-time download of about %@. After that it works offline, with nothing leaving your Mac.";
+"ask.download.body" = "Transcribing needs a one-time download of about 2 GB. After that it works offline, with nothing leaving your Mac.";
 "ask.download.yes" = "Download";
 "ask.download.no" = "Not now";
 "download.title" = "Downloading language model";
