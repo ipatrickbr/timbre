@@ -13,6 +13,12 @@ No BlackHole, no Loopback, no virtual audio driver.
 
 The icon uses the South China Morning Post palette: navy ground, gold recording bar.
 
+## The guide
+
+[Timbre-Guide.pdf](Timbre-Guide.pdf) walks a non-technical colleague through
+installation and use, with a screenshot of every button. It is written for the
+SCMP newsroom and asks readers not to pass the app outside it.
+
 ## Requirements
 
 - macOS 14.4 or later (Core Audio process taps)
