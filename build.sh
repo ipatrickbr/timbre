@@ -5,6 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP="$HOME/Applications/Timbre.app"
+STAGE="$(mktemp -d)"
+trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$HOME/Applications"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -36,16 +38,28 @@ PLIST
 
 # The log is filtered only to hide warnings; an error must fail the build,
 # otherwise the app stays installed with the old binary and nobody notices.
+# Built for both architectures and pinned to the oldest macOS we support.
+# Without an explicit target, swiftc stamps the machine's own OS version as the
+# minimum, and the app then refuses to launch on anything older.
+DEPLOYMENT_TARGET="14.4"
+SOURCES="main.swift tap.swift sck.swift menubar.swift transcribe.swift download.swift"
+FRAMEWORKS="-framework CoreAudio -framework AudioToolbox -framework AVFoundation
+            -framework ScreenCaptureKit -framework AppKit"
+
 BUILD_LOG=$(mktemp)
-if ! swiftc -O -o "$APP/Contents/MacOS/timbre" main.swift tap.swift sck.swift menubar.swift transcribe.swift download.swift \
-    -framework CoreAudio -framework AudioToolbox -framework AVFoundation \
-    -framework ScreenCaptureKit -framework AppKit 2> "$BUILD_LOG"; then
-    grep -vE "warning:|note:" "$BUILD_LOG" >&2
-    rm -f "$BUILD_LOG"
-    echo "ERROR: build failed - the app was NOT updated." >&2
-    exit 1
-fi
+SLICES=()
+for arch in arm64 x86_64; do
+    if ! swiftc -O -target "$arch-apple-macos$DEPLOYMENT_TARGET" \
+        -o "$STAGE/timbre-$arch" $SOURCES $FRAMEWORKS 2> "$BUILD_LOG"; then
+        grep -vE "warning:|note:" "$BUILD_LOG" >&2
+        rm -f "$BUILD_LOG"
+        echo "ERROR: build failed for $arch - the app was NOT updated." >&2
+        exit 1
+    fi
+    SLICES+=("$STAGE/timbre-$arch")
+done
 rm -f "$BUILD_LOG"
+lipo -create "${SLICES[@]}" -output "$APP/Contents/MacOS/timbre"
 
 # Resources: the MP3 encoder, the icon and both translations ride inside.
 if [[ -x vendor/bin/lame ]]; then
