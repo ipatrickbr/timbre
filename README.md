@@ -11,6 +11,8 @@ No BlackHole, no Loopback, no virtual audio driver.
 
 ![The Timbre icon](icon/preview.png)
 
+The icon uses the South China Morning Post palette: navy ground, gold recording bar.
+
 ## Requirements
 
 - macOS 14.4 or later (Core Audio process taps)
@@ -19,7 +21,7 @@ No BlackHole, no Loopback, no virtual audio driver.
 ## Install
 
 ```bash
-git clone https://github.com/USER/timbre.git
+git clone https://github.com/ipatrickbr/timbre.git
 cd timbre
 ./vendor/build-lame.sh   # builds the MP3 encoder (~1 min)
 ./build.sh               # builds Timbre.app into ~/Applications

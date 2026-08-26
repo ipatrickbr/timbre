@@ -49,9 +49,9 @@ let shape = fullBleed ? CGPath(rect: body, transform: nil) : squircle(in: body)
 // Sombra projetada, sutil.
 if !fullBleed {
     ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 46, color: rgb(0x1E1B4B, 0.42))
+    ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 46, color: rgb(0x02070F, 0.45))
     ctx.addPath(shape)
-    ctx.setFillColor(rgb(0x4C1D95))
+    ctx.setFillColor(rgb(0x0A2351))
     ctx.fillPath()
     ctx.restoreGState()
 }
@@ -61,7 +61,7 @@ ctx.saveGState()
 ctx.addPath(shape)
 ctx.clip()
 let bg = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                    colors: [rgb(0xA78BFA), rgb(0x7C3AED), rgb(0x4338CA)] as CFArray,
+                    colors: [rgb(0x15346E), rgb(0x0A2351), rgb(0x06152F)] as CFArray,
                     locations: [0, 0.52, 1])!
 ctx.drawLinearGradient(bg, start: CGPoint(x: body.minX, y: body.maxY),
                        end: CGPoint(x: body.maxX, y: body.minY), options: [])
@@ -99,7 +99,7 @@ let maxHeight = body.height * 0.52
 let centerY = body.midY
 
 ctx.saveGState()
-ctx.setShadow(offset: CGSize(width: 0, height: -6), blur: 18, color: rgb(0x312E81, 0.45))
+ctx.setShadow(offset: CGSize(width: 0, height: -6), blur: 18, color: rgb(0x02070F, 0.5))
 for (index, h) in heights.enumerated() {
     let barHeight = max(maxHeight * h, barWidth)
     let bar = CGRect(x: x, y: centerY - barHeight / 2, width: barWidth, height: barHeight)
@@ -109,7 +109,7 @@ for (index, h) in heights.enumerated() {
         ctx.addPath(capsule)
         ctx.clip()
         let rec = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                             colors: [rgb(0xFB7185), rgb(0xE11D48)] as CFArray, locations: [0, 1])!
+                             colors: [rgb(0xFFD24D), rgb(0xFFC000)] as CFArray, locations: [0, 1])!
         ctx.drawLinearGradient(rec, start: CGPoint(x: bar.minX, y: bar.maxY),
                                end: CGPoint(x: bar.maxX, y: bar.minY), options: [])
         ctx.restoreGState()
