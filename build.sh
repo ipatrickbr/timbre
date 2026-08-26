@@ -81,9 +81,21 @@ if [[ -n "$ENGINE_SRC" ]]; then
     mkdir -p "$APP/Contents/Resources/whisper"
     cp "$ENGINE_SRC/whisper-cli" "$APP/Contents/Resources/whisper/"
     cp "$ENGINE_SRC"/*.dylib "$APP/Contents/Resources/whisper/"
-    # Nested binaries must be signed before the bundle that contains them.
-    codesign --force --sign - "$APP/Contents/Resources/whisper/"*.dylib
-    codesign --force --sign - "$APP/Contents/Resources/whisper/whisper-cli"
+    # whisper-cli is linked with an rpath pointing at the build directory on
+    # this machine, which does not exist anywhere else. Point it at its own
+    # folder instead, where the libraries travel.
+    WHISPER_DIR="$APP/Contents/Resources/whisper"
+    for binary in "$WHISPER_DIR/whisper-cli" "$WHISPER_DIR"/*.dylib; do
+        while read -r stale; do
+            [[ -n "$stale" ]] && install_name_tool -delete_rpath "$stale" "$binary" 2>/dev/null
+        done < <(otool -l "$binary" | awk '/LC_RPATH/{f=1} f&&/path /{print $2; f=0}')
+        install_name_tool -add_rpath "@executable_path" "$binary" 2>/dev/null || true
+        install_name_tool -add_rpath "@loader_path" "$binary" 2>/dev/null || true
+    done
+
+    # Nested binaries must be signed after patching and before the bundle.
+    codesign --force --sign - "$WHISPER_DIR"/*.dylib
+    codesign --force --sign - "$WHISPER_DIR/whisper-cli"
 else
     echo "note: transcription engine not found; run ./vendor/build-whisper.sh to include it." >&2
 fi
