@@ -36,10 +36,21 @@ Drag `Timbre.app` out of `Timbre.dmg` into Applications. The transcription
 engine is inside the app, and the language models are downloaded by the app
 itself the first time you ask for a transcript.
 
-Because the app is ad-hoc signed rather than notarised, macOS will refuse to
-open it on the first try. Go to **System Settings › Privacy & Security**, find
-the message about Timbre and click **Open Anyway**. Notarising it with an Apple
-Developer ID would remove that step.
+Because the app is ad-hoc signed rather than notarised, macOS quarantines
+anything downloaded and refuses to open it, reporting only that "the
+application cannot be opened". Two ways past it, both explained in the
+`READ ME FIRST.txt` inside the disk image:
+
+- **System Settings › Privacy & Security**, scroll to the bottom, click
+  **Open Anyway** on the line about Timbre.
+- Or clear the quarantine flag directly:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Timbre.app
+```
+
+Notarising with an Apple Developer ID (US$99/year) removes this entirely and is
+the only way to make the install genuinely one step.
 
 To build from source instead:
 
