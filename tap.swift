@@ -18,12 +18,14 @@ func check(_ status: OSStatus, _ what: String) throws {
     guard status == noErr else { throw Err("\(what) failed — \(fourCC(status))") }
 }
 
-private func systemProperty<T>(_ selector: AudioObjectPropertySelector, _ initial: T) throws -> T {
+/// Not generic on purpose: a generic `T` here makes the compiler warn about
+/// forming a raw pointer to a value that might hold an object reference.
+private func systemAudioObject(_ selector: AudioObjectPropertySelector) throws -> AudioObjectID {
     var addr = AudioObjectPropertyAddress(mSelector: selector,
                                           mScope: kAudioObjectPropertyScopeGlobal,
                                           mElement: kAudioObjectPropertyElementMain)
-    var value = initial
-    var size = UInt32(MemoryLayout<T>.size)
+    var value = AudioObjectID(kAudioObjectUnknown)
+    var size = UInt32(MemoryLayout<AudioObjectID>.size)
     try check(AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),
                                          &addr, 0, nil, &size, &value), "reading system property")
     return value
@@ -103,8 +105,7 @@ final class TapRecorder: @unchecked Sendable {
     func start(outputURL: URL, mute: Bool) throws {
         guard !isRecording else { return }
 
-        let outputDevice: AudioObjectID = try systemProperty(kAudioHardwarePropertyDefaultOutputDevice,
-                                                             AudioObjectID(kAudioObjectUnknown))
+        let outputDevice = try systemAudioObject(kAudioHardwarePropertyDefaultOutputDevice)
         guard outputDevice != kAudioObjectUnknown else {
             throw Err("no default output device found")
         }
