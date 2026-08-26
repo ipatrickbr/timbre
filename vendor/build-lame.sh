@@ -15,10 +15,10 @@ if [[ -x bin/lame ]]; then
     exit 0
 fi
 
-echo "Downloading LAME $VERSION…"
+echo "Downloading LAME $VERSION..."
 curl -sL --max-time 180 -o "$TARBALL" "$URL"
 
-echo "Verifying checksum…"
+echo "Verifying checksum..."
 ACTUAL="$(shasum -a 256 "$TARBALL" | awk '{print $1}')"
 if [[ "$ACTUAL" != "$SHA256" ]]; then
     echo "ERROR: checksum mismatch." >&2
@@ -28,7 +28,7 @@ if [[ "$ACTUAL" != "$SHA256" ]]; then
     exit 1
 fi
 
-echo "Building…"
+echo "Building..."
 rm -rf "lame-$VERSION"
 tar xzf "$TARBALL"
 cd "lame-$VERSION"

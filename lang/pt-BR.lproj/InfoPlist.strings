@@ -1,0 +1,2 @@
+"NSAudioCaptureUsageDescription" = "O Timbre precisa deste acesso para gravar o áudio que está tocando no Mac.";
+"NSMicrophoneUsageDescription" = "O Timbre precisa deste acesso para gravar o áudio que está tocando no Mac.";

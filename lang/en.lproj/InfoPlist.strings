@@ -1,0 +1,2 @@
+"NSAudioCaptureUsageDescription" = "Timbre needs this access to record the audio playing on your Mac.";
+"NSMicrophoneUsageDescription" = "Timbre needs this access to record the audio playing on your Mac.";

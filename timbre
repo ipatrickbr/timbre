@@ -1,5 +1,5 @@
 #!/bin/bash
-# timbre — records the audio playing inside your Mac and produces an MP3.
+# timbre - records the audio playing inside your Mac and produces an MP3.
 # Capture happens digitally: nothing has to come out of the speakers.
 set -euo pipefail
 
@@ -27,15 +27,15 @@ BITRATE="${TIMBRE_BITRATE:-192}"
 # Follow the same language the app is pinned to, so a machine set to Portuguese
 # gets Portuguese in the terminal too.
 if defaults read local.timbre AppleLanguages 2>/dev/null | grep -qi "pt"; then
-    msg_nobuild="gravador não compilado — rode: $DIR/build.sh"
+    msg_nobuild="gravador não compilado - rode: $DIR/build.sh"
     msg_unknown="opção desconhecida:"
     msg_done="pronto:"
-    msg_noenc="nenhum encoder MP3 encontrado — o áudio ficou em WAV:"
+    msg_noenc="nenhum encoder MP3 encontrado - o áudio ficou em WAV:"
 else
-    msg_nobuild="recorder not built — run: $DIR/build.sh"
+    msg_nobuild="recorder not built - run: $DIR/build.sh"
     msg_unknown="unknown option:"
     msg_done="done:"
-    msg_noenc="no MP3 encoder found — audio kept as WAV:"
+    msg_noenc="no MP3 encoder found - audio kept as WAV:"
 fi
 
 [[ -x "$REC" ]] || { echo "$msg_nobuild" >&2; exit 1; }

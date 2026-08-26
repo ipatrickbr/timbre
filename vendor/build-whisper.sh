@@ -3,7 +3,7 @@
 #
 # Everything lands in ~/Library/Application Support/Timbre/whisper: the binary,
 # its libraries and the language model. Nothing is committed to this repository
-# and nothing is sent anywhere — transcription runs entirely on this machine.
+# and nothing is sent anywhere - transcription runs entirely on this machine.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -24,7 +24,7 @@ fi
 CMAKE="$(command -v cmake || true)"
 if [[ -z "$CMAKE" ]]; then
     if [[ ! -x "cmake-$CMAKE_VERSION-macos-universal/CMake.app/Contents/bin/cmake" ]]; then
-        echo "Downloading CMake $CMAKE_VERSION…"
+        echo "Downloading CMake $CMAKE_VERSION..."
         curl -sL --max-time 600 -o cmake.tar.gz \
             "https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION-macos-universal.tar.gz"
         tar xzf cmake.tar.gz
@@ -34,26 +34,26 @@ if [[ -z "$CMAKE" ]]; then
 fi
 
 if [[ ! -d whisper.cpp ]]; then
-    echo "Fetching whisper.cpp…"
+    echo "Fetching whisper.cpp..."
     git clone -q --depth 1 https://github.com/ggml-org/whisper.cpp.git
 fi
 
-echo "Building (Metal enabled — this takes a couple of minutes)…"
+echo "Building (Metal enabled - this takes a couple of minutes)..."
 cd whisper.cpp
 "$CMAKE" -B build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF -DGGML_METAL=ON >/dev/null
 "$CMAKE" --build build --config Release --parallel "$(sysctl -n hw.ncpu)" >/dev/null 2>&1
 
 if [[ ! -f "models/ggml-$MODEL.bin" ]]; then
-    echo "Downloading the $MODEL model (this is the big one, ~1.5 GB)…"
+    echo "Downloading the $MODEL model (this is the big one, ~1.5 GB)..."
     bash models/download-ggml-model.sh "$MODEL" >/dev/null
 fi
 
 if [[ "$MODEL" == *turbo* && ! -f "models/ggml-$TRANSLATION_MODEL.bin" ]]; then
-    echo "Downloading the $TRANSLATION_MODEL model for translation (~470 MB)…"
+    echo "Downloading the $TRANSLATION_MODEL model for translation (~470 MB)..."
     bash models/download-ggml-model.sh "$TRANSLATION_MODEL" >/dev/null
 fi
 
-echo "Installing…"
+echo "Installing..."
 mkdir -p "$DEST/models"
 cp build/bin/whisper-cli "$DEST/"
 cp build/bin/*.dylib "$DEST/"

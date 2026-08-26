@@ -27,9 +27,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleLocalizations</key>
     <array><string>en</string><string>pt-BR</string></array>
     <key>NSAudioCaptureUsageDescription</key>
-    <string>O Timbre precisa deste acesso para capturar o áudio que está tocando no Mac.</string>
+    <string>Timbre needs this access to record the audio playing on your Mac.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>O Timbre precisa deste acesso para capturar o áudio que está tocando no Mac.</string>
+    <string>Timbre needs this access to record the audio playing on your Mac.</string>
 </dict>
 </plist>
 PLIST
@@ -42,7 +42,7 @@ if ! swiftc -O -o "$APP/Contents/MacOS/timbre" main.swift tap.swift sck.swift me
     -framework ScreenCaptureKit -framework AppKit 2> "$BUILD_LOG"; then
     grep -vE "warning:|note:" "$BUILD_LOG" >&2
     rm -f "$BUILD_LOG"
-    echo "ERROR: build failed — the app was NOT updated." >&2
+    echo "ERROR: build failed - the app was NOT updated." >&2
     exit 1
 fi
 rm -f "$BUILD_LOG"
@@ -51,7 +51,7 @@ rm -f "$BUILD_LOG"
 if [[ -x vendor/bin/lame ]]; then
     cp vendor/bin/lame "$APP/Contents/Resources/lame"
 else
-    echo "note: MP3 encoder missing — run ./vendor/build-lame.sh to enable MP3 output." >&2
+    echo "note: MP3 encoder missing - run ./vendor/build-lame.sh to enable MP3 output." >&2
 fi
 [[ -f icon/AppIcon.icns ]] && cp icon/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp sounds/start.wav sounds/stop.wav "$APP/Contents/Resources/" 2>/dev/null || true
