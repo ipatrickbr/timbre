@@ -92,9 +92,8 @@ let heights: [CGFloat] = simplified
     : [0.26, 0.50, 0.78, 1.0, 0.68, 0.88, 0.44, 0.28]
 let barWidth: CGFloat = simplified ? 88 : 50
 let gap: CGFloat = simplified ? 44 : 30
-// Gold sits on the three central bars — the tallest part of the wave — so the
-// SCMP pairing reads as deliberate without turning the icon into stripes.
-let goldBars: Set<Int> = simplified ? [1, 2, 3] : [3, 4, 5]
+// The whole wave is gold on navy: the masthead pairing, nothing else.
+let goldBars: Set<Int> = Set(0..<heights.count)
 let totalWidth = CGFloat(heights.count) * barWidth + CGFloat(heights.count - 1) * gap
 var x = body.midX - totalWidth / 2
 let maxHeight = body.height * 0.52
