@@ -57,6 +57,18 @@ echo "Installing..."
 mkdir -p "$DEST/models"
 cp build/bin/whisper-cli "$DEST/"
 cp build/bin/*.dylib "$DEST/"
+
+# The binaries are linked against the build directory by absolute path. Once
+# installed they must look beside themselves instead, or deleting this checkout
+# would break transcription.
+for binary in "$DEST/whisper-cli" "$DEST"/*.dylib; do
+    while read -r stale; do
+        [[ -n "$stale" ]] && install_name_tool -delete_rpath "$stale" "$binary" 2>/dev/null
+    done < <(otool -l "$binary" | awk '/LC_RPATH/{f=1} f&&/path /{print $2; f=0}')
+    install_name_tool -add_rpath "@executable_path" "$binary" 2>/dev/null || true
+    install_name_tool -add_rpath "@loader_path" "$binary" 2>/dev/null || true
+    codesign --force --sign - "$binary" 2>/dev/null || true
+done
 cp "models/ggml-$MODEL.bin" "$DEST/models/"
 [[ -f "models/ggml-$TRANSLATION_MODEL.bin" ]] && cp "models/ggml-$TRANSLATION_MODEL.bin" "$DEST/models/"
 
