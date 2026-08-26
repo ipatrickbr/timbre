@@ -63,3 +63,9 @@
 "menu.transcribe.missing" = "Run ./vendor/build-whisper.sh once to enable transcription";
 "transcribe.title" = "Transcribing";
 "transcribe.starting" = "Starting…";
+"ask.transcribe.title" = "Transcribe this recording?";
+"ask.transcribe.body" = "Timbre can turn the audio into text on this Mac, without sending it anywhere. This should take about %@.";
+"ask.transcribe.yes" = "Transcribe";
+"ask.transcribe.no" = "Not now";
+"error.transcribe.title" = "Could not transcribe";
+"error.transcribe.body" = "The recording itself was saved. You can try again by recording a short test, or tell Igor what happened.";

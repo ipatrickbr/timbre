@@ -73,8 +73,10 @@ That builds the engine and downloads the `large-v3-turbo` model (~1.5 GB) into
 `~/Library/Application Support/Timbre/whisper`. Pass another model name as an
 argument to use a smaller one (`small`, `base`, `tiny`).
 
-Then tick **Transcribe after recording** in the menu. Each recording produces a
-`.txt` next to the MP3, plus a `.srt` with timestamps.
+After that, every time a recording finishes Timbre asks whether you want a
+transcript, with an estimate of how long it will take. Say yes and you get a
+`.txt` next to the MP3, plus a `.srt` with timestamps. Say no and nothing else
+happens.
 
 Measured on an M4: **8x faster than real time** — an hour of audio transcribes
 in about seven minutes. Language is auto-detected.
