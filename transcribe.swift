@@ -10,10 +10,21 @@ enum Transcriber {
         return base.appendingPathComponent("Timbre/whisper", isDirectory: true)
     }
 
-    static var binary: URL { supportDirectory.appendingPathComponent("whisper-cli") }
+    /// The engine ships inside the app. A copy installed by the build script is
+    /// still honoured, so machines set up the old way keep working.
+    static var binary: URL {
+        let bundled = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Resources/whisper/whisper-cli")
+        if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
+        return supportDirectory.appendingPathComponent("whisper-cli")
+    }
+
+    static var modelsDirectory: URL {
+        supportDirectory.appendingPathComponent("models", isDirectory: true)
+    }
 
     private static var installedModels: [URL] {
-        let models = supportDirectory.appendingPathComponent("models", isDirectory: true)
+        let models = modelsDirectory
         let found = (try? FileManager.default.contentsOfDirectory(
             at: models, includingPropertiesForKeys: [.fileSizeKey])) ?? []
         return found.filter { $0.lastPathComponent.hasPrefix("ggml-") && $0.pathExtension == "bin" }
@@ -40,9 +51,10 @@ enum Transcriber {
 
     static var canTranslate: Bool { translationModel != nil }
 
-    static var isInstalled: Bool {
-        FileManager.default.isExecutableFile(atPath: binary.path) && model != nil
-    }
+    /// The engine ships with the app; the models are downloaded on first use.
+    static var hasEngine: Bool { FileManager.default.isExecutableFile(atPath: binary.path) }
+
+    static var isInstalled: Bool { hasEngine && model != nil }
 
     struct Outcome {
         let succeeded: Bool

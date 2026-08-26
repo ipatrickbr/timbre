@@ -106,6 +106,12 @@ final class ConversionPanel {
         status?.stringValue = t("transcribe.starting")
     }
 
+    func startDownload() {
+        title?.stringValue = t("download.title")
+        bar?.fraction = 0
+        status?.stringValue = t("transcribe.starting")
+    }
+
     func startTranslation() {
         title?.stringValue = t("translate.title")
         bar?.fraction = 0
@@ -145,6 +151,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var busy = false
     private var startSound: AVAudioPlayer?
     private var transcriptionTicker: Timer?
+    private var downloader: ModelDownloader?
     private var reportedProgress: Double = 0
     private var stopSound: AVAudioPlayer?
 
@@ -427,14 +434,71 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     /// untouched WAV, which is better input than the MP3 we just encoded, so
     /// the file is only discarded afterwards.
     private func offerTranscription(wav: URL, mp3: URL, seconds: Double) {
-        guard Transcriber.isInstalled, askTranscribe(seconds: seconds) else {
+        guard Transcriber.hasEngine, askTranscribe(seconds: seconds) else {
             busy = false
             showIdle()
             try? FileManager.default.removeItem(at: wav)
             NSWorkspace.shared.activateFileViewerSelecting([mp3])
             return
         }
+
+        // The engine ships with the app but the language models do not, so the
+        // first transcription fetches them.
+        guard Transcriber.model != nil else {
+            downloadModels(wav: wav, mp3: mp3, seconds: seconds)
+            return
+        }
         runTranscription(wav: wav, mp3: mp3, seconds: seconds)
+    }
+
+    private func downloadModels(wav: URL, mp3: URL, seconds: Double) {
+        guard askDownload() else {
+            busy = false
+            showIdle()
+            try? FileManager.default.removeItem(at: wav)
+            NSWorkspace.shared.activateFileViewerSelecting([mp3])
+            return
+        }
+
+        conversion.show(fileName: "")
+        conversion.startDownload()
+        let started = Date()
+
+        let downloader = ModelDownloader()
+        self.downloader = downloader
+        downloader.start(progress: { [weak self] fraction in
+            let elapsed = Date().timeIntervalSince(started)
+            let remaining = fraction > 0.02 ? elapsed / fraction - elapsed : nil
+            self?.conversion.update(fraction: fraction, remaining: remaining)
+        }, completion: { [weak self] ok in
+            guard let self else { return }
+            self.downloader = nil
+            self.conversion.close()
+            guard ok, Transcriber.model != nil else {
+                self.busy = false
+                self.showIdle()
+                try? FileManager.default.removeItem(at: wav)
+                NSWorkspace.shared.activateFileViewerSelecting([mp3])
+                self.showError(t("error.download.title"), t("error.download.body"))
+                return
+            }
+            self.runTranscription(wav: wav, mp3: mp3, seconds: seconds)
+        })
+    }
+
+    /// Asked once, before the first transcription on a machine.
+    private func askDownload() -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+        let size = ByteCountFormatter.string(fromByteCount: ModelDownloader.totalBytes,
+                                             countStyle: .file)
+        let alert = NSAlert()
+        alert.messageText = t("ask.download.title")
+        alert.informativeText = String(format: t("ask.download.body"), size)
+        alert.alertStyle = .informational
+        if let icon = NSApp.applicationIconImage { alert.icon = icon }
+        alert.addButton(withTitle: t("ask.download.yes"))
+        alert.addButton(withTitle: t("ask.download.no"))
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     /// Kept separate from the prompt so the progress behaviour can be exercised

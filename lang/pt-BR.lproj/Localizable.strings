@@ -72,3 +72,10 @@
 "ask.translate.yes" = "Traduzir";
 "ask.translate.no" = "Não, obrigado";
 "translate.title" = "Traduzindo para o inglês";
+"ask.download.title" = "Baixar o modelo de idiomas?";
+"ask.download.body" = "A transcrição exige um download único de cerca de %@. Depois disso funciona sem internet, sem nada sair do seu Mac.";
+"ask.download.yes" = "Baixar";
+"ask.download.no" = "Agora não";
+"download.title" = "Baixando o modelo de idiomas";
+"error.download.title" = "O download não terminou";
+"error.download.body" = "Sua gravação foi salva. Verifique a conexão e tente transcrever na próxima gravação.";

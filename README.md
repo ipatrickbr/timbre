@@ -32,11 +32,24 @@ are confirmed against the audio, and editors are told when AI has been involved.
 
 ## Install
 
+Drag `Timbre.app` out of `Timbre.dmg` into Applications. The transcription
+engine is inside the app, and the language models are downloaded by the app
+itself the first time you ask for a transcript.
+
+Because the app is ad-hoc signed rather than notarised, macOS will refuse to
+open it on the first try. Go to **System Settings › Privacy & Security**, find
+the message about Timbre and click **Open Anyway**. Notarising it with an Apple
+Developer ID would remove that step.
+
+To build from source instead:
+
 ```bash
 git clone https://github.com/ipatrickbr/timbre.git
 cd timbre
-./vendor/build-lame.sh   # builds the MP3 encoder (~1 min)
-./build.sh               # builds Timbre.app into ~/Applications
+./vendor/build-lame.sh    # MP3 encoder
+./vendor/build-whisper.sh # transcription engine, so the app can ship with it
+./build.sh                # builds Timbre.app into ~/Applications
+./make-dmg.sh             # optional: package it for someone else
 ```
 
 Open Timbre from Launchpad. macOS will ask for permission the first time —
