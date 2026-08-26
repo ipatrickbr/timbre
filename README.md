@@ -19,6 +19,11 @@ The icon uses the South China Morning Post palette: navy ground, gold recording 
 installation and use, with a screenshot of every button. It is written for the
 SCMP newsroom and asks readers not to pass the app outside it.
 
+It also carries a page on using the tool within the newsroom's generative AI
+policy: the transcript is not a citable source, quotes are checked against the
+audio before publication, editors are told when AI has been involved, and the
+whole thing runs locally so no material reaches a third party.
+
 ## Requirements
 
 - macOS 14.4 or later (Core Audio process taps)
