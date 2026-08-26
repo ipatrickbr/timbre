@@ -37,7 +37,7 @@ PLIST
 # The log is filtered only to hide warnings; an error must fail the build,
 # otherwise the app stays installed with the old binary and nobody notices.
 BUILD_LOG=$(mktemp)
-if ! swiftc -O -o "$APP/Contents/MacOS/timbre" main.swift tap.swift sck.swift menubar.swift \
+if ! swiftc -O -o "$APP/Contents/MacOS/timbre" main.swift tap.swift sck.swift menubar.swift transcribe.swift \
     -framework CoreAudio -framework AudioToolbox -framework AVFoundation \
     -framework ScreenCaptureKit -framework AppKit 2> "$BUILD_LOG"; then
     grep -vE "warning:|note:" "$BUILD_LOG" >&2

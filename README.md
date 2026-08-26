@@ -59,6 +59,30 @@ recording. They are excluded from the capture, so they never end up in the file.
 ./timbre -b 320 talk.mp3     # bitrate (default 192)
 ```
 
+## Transcription (optional)
+
+Timbre can transcribe a recording the moment it finishes, entirely offline,
+using [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with Metal
+acceleration. Install it once:
+
+```bash
+./vendor/build-whisper.sh
+```
+
+That builds the engine and downloads the `large-v3-turbo` model (~1.5 GB) into
+`~/Library/Application Support/Timbre/whisper`. Pass another model name as an
+argument to use a smaller one (`small`, `base`, `tiny`).
+
+Then tick **Transcribe after recording** in the menu. Each recording produces a
+`.txt` next to the MP3, plus a `.srt` with timestamps.
+
+Measured on an M4: **8x faster than real time** — an hour of audio transcribes
+in about seven minutes. Language is auto-detected.
+
+The point is not only convenience. Uploading audio to a cloud transcription
+service means handing the material to a third party; here nothing leaves the
+machine, which matters for embargoed or sensitive recordings.
+
 ## Language
 
 The interface ships in **English** and **Brazilian Portuguese**, following the
@@ -108,6 +132,7 @@ main.swift     command line entry point and routing
 tap.swift      TapRecorder: capture through a Core Audio process tap
 menubar.swift  menu bar icon, dialogs and progress panel
 sck.swift      ScreenCaptureKit backend (--sck)
+transcribe.swift  offline transcription through whisper.cpp
 lang/          English and Portuguese translations
 icon/          icon generator (CoreGraphics) and AppIcon.icns
 sounds/        marimba cue synthesis and the WAVs

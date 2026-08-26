@@ -21,3 +21,5 @@ icon/fb_*.png
 
 # The guide carries a newsroom-only notice: distributed directly, not from a public repo
 Timbre-Guide.pdf
+vendor/whisper.cpp/
+vendor/cmake-*/

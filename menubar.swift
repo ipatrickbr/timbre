@@ -43,6 +43,7 @@ final class ConversionPanel {
     private var panel: NSPanel?
     private var bar: AccentProgressBar?
     private var status: NSTextField?
+    private var title: NSTextField?
 
     func show(fileName: String) {
         let size = NSSize(width: 400, height: 132)
@@ -62,6 +63,7 @@ final class ConversionPanel {
         panel.contentView = blur
 
         let title = NSTextField(labelWithString: t("convert.title"))
+        self.title = title
         title.font = .systemFont(ofSize: 13, weight: .semibold)
         title.frame = NSRect(x: 20, y: 92, width: 360, height: 18)
         blur.addSubview(title)
@@ -90,6 +92,12 @@ final class ConversionPanel {
         self.status = status
     }
 
+    func startTranscription(fileName: String) {
+        title?.stringValue = t("transcribe.title")
+        bar?.fraction = 0
+        status?.stringValue = t("transcribe.starting")
+    }
+
     func update(fraction: Double, remaining: TimeInterval?) {
         bar?.fraction = fraction
         let pct = Int((fraction * 100).rounded())
@@ -105,6 +113,7 @@ final class ConversionPanel {
         panel = nil
         bar = nil
         status = nil
+        title = nil
     }
 
     private static func humanize(_ seconds: TimeInterval) -> String {
@@ -127,6 +136,11 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var currentWAV: URL?
     private var busy = false
     private var startSound: AVAudioPlayer?
+    /// Offline transcription is opt-in and remembered between launches.
+    private var transcribeEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "transcribeAfterRecording") }
+        set { UserDefaults.standard.set(newValue, forKey: "transcribeAfterRecording") }
+    }
     private var stopSound: AVAudioPlayer?
 
     private var destinationFolder: URL {
@@ -266,6 +280,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(.separator())
+
+        let transcribe = NSMenuItem(title: t("menu.transcribe"),
+                                    action: #selector(toggleTranscribe), keyEquivalent: "")
+        transcribe.target = self
+        transcribe.state = transcribeEnabled ? .on : .off
+        if Transcriber.isInstalled == false {
+            transcribe.isEnabled = false
+            transcribe.toolTip = t("menu.transcribe.missing")
+        }
+        menu.addItem(transcribe)
+
         let folder = NSMenuItem(title: t("menu.folder"), action: #selector(openFolder), keyEquivalent: "")
         folder.target = self
         menu.addItem(folder)
@@ -297,6 +322,11 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             showPaused()
         }
         updateTitle()
+    }
+
+    @objc private func toggleTranscribe() {
+        guard Transcriber.isInstalled else { return }
+        transcribeEnabled.toggle()
     }
 
     @objc private func openFolder() {
@@ -385,6 +415,18 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 let elapsed = Date().timeIntervalSince(startedConversion)
                 let remaining = fraction > 0.02 ? elapsed / fraction - elapsed : nil
                 DispatchQueue.main.async { self?.conversion.update(fraction: fraction, remaining: remaining) }
+            }
+            // Transcribe from the untouched WAV before discarding it: better
+            // input than the MP3 we just encoded.
+            if ok, self?.transcribeEnabled == true, Transcriber.isInstalled {
+                DispatchQueue.main.async {
+                    self?.conversion.startTranscription(fileName: mp3.lastPathComponent)
+                }
+                _ = Transcriber.run(audio: wav, outputBase: mp3.deletingPathExtension()) { fraction in
+                    DispatchQueue.main.async {
+                        self?.conversion.update(fraction: fraction, remaining: nil)
+                    }
+                }
             }
             DispatchQueue.main.async {
                 self?.conversion.close()
