@@ -16,7 +16,8 @@ The icon uses the South China Morning Post palette: navy ground, gold recording 
 ## The guide
 
 [Timbre-Guide.pdf](Timbre-Guide.pdf) walks a non-technical colleague through
-installation and use, with a screenshot of every button. It is written for the
+installation and use, with a screenshot of every button. It leads with the disk
+image and keeps the build-from-source route as a fallback. It is written for the
 SCMP newsroom and asks readers not to pass the app outside it.
 
 It also carries a page on the **SCMP Editorial Generative AI Policy**, setting
