@@ -28,6 +28,10 @@ if [[ "$ACTUAL" != "$SHA256" ]]; then
     exit 1
 fi
 
+# Without this the compiler stamps this machine's macOS as the minimum, and the
+# binary refuses to run on anything older.
+export MACOSX_DEPLOYMENT_TARGET=14.4
+
 echo "Building..."
 rm -rf "lame-$VERSION"
 tar xzf "$TARBALL"

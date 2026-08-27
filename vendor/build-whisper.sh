@@ -40,7 +40,10 @@ fi
 
 echo "Building (Metal enabled - this takes a couple of minutes)..."
 cd whisper.cpp
-"$CMAKE" -B build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF -DGGML_METAL=ON >/dev/null
+# CMAKE_OSX_DEPLOYMENT_TARGET keeps the engine runnable on older macOS; without
+# it the build machine's version becomes the minimum.
+"$CMAKE" -B build -DCMAKE_BUILD_TYPE=Release -DWHISPER_BUILD_TESTS=OFF \
+    -DGGML_METAL=ON -DCMAKE_OSX_DEPLOYMENT_TARGET=14.4 >/dev/null
 "$CMAKE" --build build --config Release --parallel "$(sysctl -n hw.ncpu)" >/dev/null 2>&1
 
 if [[ ! -f "models/ggml-$MODEL.bin" ]]; then
