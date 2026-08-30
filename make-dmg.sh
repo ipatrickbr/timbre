@@ -20,39 +20,40 @@ cat > "$STAGING/READ ME FIRST.txt" <<'NOTE'
 Installing Timbre
 =================
 
-STEP 1, AND DO NOT SKIP IT
---------------------------
+STEP 1
+------
 Drag the Timbre icon onto the Applications folder in this window.
-
-Do not double-click Timbre here. Opening it from this window cannot work:
-this disk image is read-only, so macOS blocks the app and cannot even offer
-you the option to allow it. That is why it looks like nothing can be done.
 
 STEP 2
 ------
-Open Timbre from Launchpad, not from this window. macOS will say the app
-cannot be opened, because Timbre is not signed with a paid Apple developer
-certificate. Click "Done", NOT "Move to Trash" (the blue button deletes it).
+macOS will refuse to open Timbre, because it is not signed with a paid Apple
+developer certificate. On recent versions of macOS there is often no button
+anywhere to allow it, so this one line is the reliable way through.
 
-STEP 3
-------
-Open System Settings > Privacy & Security and scroll to the bottom. There
-should be a line about Timbre with an "Open Anyway" button. Click it, then
-open Timbre again and confirm.
-
-IF THAT BUTTON IS NOT THERE
----------------------------
-This always works. Open Terminal (Command + Space, type Terminal), paste
-this line and press Return:
+Open Terminal (press Command + Space, type Terminal, press Return), then
+paste the line below and press Return:
 
 xattr -dr com.apple.quarantine /Applications/Timbre.app
 
-Nothing appears to happen, which is fine. Open Timbre from Launchpad again.
+Nothing appears to happen. That is what success looks like.
+
+STEP 3
+------
+Open Timbre from Launchpad. It should open normally now.
+
+If you get a warning with a blue "Move to Trash" button, click "Done"
+instead, then run the line from step 2 again.
 
 STEP 4
 ------
 The first time it records, macOS asks for permission. Approve Timbre under
 System Settings > Privacy & Security > Screen & System Audio Recording.
+
+WHY THIS IS NEEDED
+------------------
+Signing an app so macOS trusts it on sight costs money every year. Until
+that is sorted out, this line tells your Mac that you know where the app
+came from. It changes nothing else on your machine.
 
 Questions: igor.patrick@scmp.com
 NOTE
