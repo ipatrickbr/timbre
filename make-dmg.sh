@@ -20,32 +20,39 @@ cat > "$STAGING/READ ME FIRST.txt" <<'NOTE'
 Installing Timbre
 =================
 
-1. Drag Timbre onto the Applications folder in this window.
+STEP 1, AND DO NOT SKIP IT
+--------------------------
+Drag the Timbre icon onto the Applications folder in this window.
 
-2. Open it from Launchpad. macOS will say the app cannot be opened.
-   This is expected: Timbre is not signed with a paid Apple developer
-   certificate, so the system blocks anything downloaded from the internet.
+Do not double-click Timbre here. Opening it from this window cannot work:
+this disk image is read-only, so macOS blocks the app and cannot even offer
+you the option to allow it. That is why it looks like nothing can be done.
 
-3. Get past it in one of these two ways.
+STEP 2
+------
+Open Timbre from Launchpad, not from this window. macOS will say the app
+cannot be opened, because Timbre is not signed with a paid Apple developer
+certificate. Click "Done", NOT "Move to Trash" (the blue button deletes it).
 
-   The easy way
-   ------------
-   Open System Settings, go to Privacy & Security, scroll to the bottom.
-   There should be a line saying Timbre was blocked, with a button that
-   says Open Anyway. Click it, then open Timbre again and confirm.
+STEP 3
+------
+Open System Settings > Privacy & Security and scroll to the bottom. There
+should be a line about Timbre with an "Open Anyway" button. Click it, then
+open Timbre again and confirm.
 
-   If that button is not there
-   ---------------------------
-   Open Terminal (Command + Space, type Terminal), paste this line and
-   press Return:
+IF THAT BUTTON IS NOT THERE
+---------------------------
+This always works. Open Terminal (Command + Space, type Terminal), paste
+this line and press Return:
 
-   xattr -dr com.apple.quarantine /Applications/Timbre.app
+xattr -dr com.apple.quarantine /Applications/Timbre.app
 
-   Nothing will appear to happen. That is fine. Open Timbre again.
+Nothing appears to happen, which is fine. Open Timbre from Launchpad again.
 
-4. The first time it records, macOS asks for permission. Approve Timbre
-   under System Settings > Privacy & Security > Screen & System Audio
-   Recording.
+STEP 4
+------
+The first time it records, macOS asks for permission. Approve Timbre under
+System Settings > Privacy & Security > Screen & System Audio Recording.
 
 Questions: igor.patrick@scmp.com
 NOTE
