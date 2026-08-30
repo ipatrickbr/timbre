@@ -33,7 +33,7 @@ are confirmed against the audio, and editors are told when AI has been involved.
 
 ## Install
 
-Drag `Timbre.app` out of `Timbre.dmg` into Applications. The transcription
+Download [Timbre.dmg](Timbre.dmg) and drag `Timbre.app` into Applications. The transcription
 engine is inside the app, and the language models are downloaded by the app
 itself the first time you ask for a transcript.
 
