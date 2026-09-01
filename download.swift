@@ -7,23 +7,43 @@ final class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     struct Model {
         let name: String
         let expectedBytes: Int64
+        /// Most models come from the whisper.cpp collection; the voice activity
+        /// one lives in its own repository.
+        var repository = "ggerganov/whisper.cpp"
         var overrideURL: URL? = nil
 
         var fileName: String { "ggml-\(name).bin" }
         var url: URL {
             overrideURL
-                ?? URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-\(name).bin")!
+                ?? URL(string: "https://huggingface.co/\(repository)/resolve/main/ggml-\(name).bin")!
         }
     }
 
     /// Transcription runs on the turbo model; translation needs a second one,
-    /// because turbo returns the source language when asked to translate.
+    /// because turbo returns the source language when asked to translate. The
+    /// third is the voice activity model, which keeps whisper away from the
+    /// silent stretches it would otherwise fill with invented speech.
     static let required = [
         Model(name: "large-v3-turbo", expectedBytes: 1_624_555_275),
         Model(name: "small", expectedBytes: 487_601_967),
+        Model(name: "silero-v5.1.2", expectedBytes: 885_098, repository: "ggml-org/whisper-vad"),
     ]
 
     static var totalBytes: Int64 { required.reduce(0) { $0 + $1.expectedBytes } }
+
+    /// What this machine still has to fetch. Someone who installed Timbre
+    /// before voice activity detection existed is missing under a megabyte, and
+    /// should not be shown a warning written for a two gigabyte download.
+    static var missingBytes: Int64 { missing.reduce(0) { $0 + $1.expectedBytes } }
+
+    /// Rounded for a sentence rather than a progress bar.
+    static var missingDescription: String {
+        let bytes = Double(missingBytes)
+        if bytes >= 1_000_000_000 {
+            return String(format: "%.1f GB", bytes / 1_000_000_000)
+        }
+        return "\(Int((bytes / 1_000_000).rounded())) MB"
+    }
 
     static var missing: [Model] {
         required.filter { model in

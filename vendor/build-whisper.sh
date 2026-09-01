@@ -11,8 +11,20 @@ MODEL="${1:-large-v3-turbo}"
 # The turbo models transcribe beautifully but cannot translate, so a second,
 # smaller model is installed alongside for English translation.
 TRANSLATION_MODEL="small"
+VAD_MODEL="silero-v5.1.2"
 DEST="$HOME/Library/Application Support/Timbre/whisper"
 CMAKE_VERSION="4.4.3"
+
+# Voice activity detection. Whisper handed a silent stretch will invent speech
+# to fill it, sometimes repeating one sentence for minutes, so this small model
+# is not optional. It comes from its own repository, and it is fetched before
+# the early exit below so that an existing install gets topped up too.
+mkdir -p "$DEST/models"
+if [[ ! -s "$DEST/models/ggml-$VAD_MODEL.bin" ]]; then
+    echo "Downloading the voice activity model (under 1 MB)..."
+    curl -sL --max-time 300 -o "$DEST/models/ggml-$VAD_MODEL.bin" \
+        "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-$VAD_MODEL.bin"
+fi
 
 if [[ -x "$DEST/whisper-cli" && -f "$DEST/models/ggml-$MODEL.bin" ]]; then
     echo "Transcription engine already installed: $DEST"

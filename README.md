@@ -96,6 +96,16 @@ recording. They are excluded from the capture, so they never end up in the file.
 ./timbre -b 320 talk.mp3     # bitrate (default 192)
 ```
 
+To transcribe something already on disk, without recording it again:
+
+```bash
+open -a Timbre --args --transcribe /path/to/old-recording.mp3
+```
+
+That replays everything a fresh recording goes through once the MP3 exists, so
+it also serves as the way to exercise that flow without putting a sound through
+the speakers.
+
 ## Transcription (optional)
 
 Timbre can transcribe a recording the moment it finishes, entirely offline,
@@ -106,21 +116,35 @@ acceleration. Install it once:
 ./vendor/build-whisper.sh
 ```
 
-That builds the engine and downloads two models into `~/Library/Application
-Support/Timbre/whisper`: `large-v3-turbo` (~1.5 GB) for transcription, and
-`small` (~470 MB) for translation. The turbo models are trained for
-transcription only and silently return the original language when asked to
-translate, which is why a second model is needed.
+That builds the engine and downloads three models into `~/Library/Application
+Support/Timbre/whisper`: `large-v3-turbo` (~1.5 GB) for transcription, `small`
+(~470 MB) for translation, and `silero-v5.1.2` (under 1 MB) for voice activity
+detection. The turbo models are trained for transcription only and silently
+return the original language when asked to translate, which is why a second
+model is needed.
 
-After that, every time a recording finishes Timbre asks whether you want a
-transcript, with an estimate of how long it will take. Say yes and you get a
-`.txt` next to the MP3, plus a `.srt` with timestamps. Say no and nothing else
-happens.
+The voice activity model is the one that stops whisper hallucinating. Handed a
+silent stretch it will invent speech to fill it, repeating the last sentence it
+heard, sometimes for minutes at a time. A recorded interview with two minutes of
+dead air in the middle came back with one sentence repeated 69 times, and
+another 81 times later on. Detecting speech first and hiding the silence brought
+the longest repeated run down from 81 to 6, with no real speech lost.
 
-Measured on an M4: **8x faster than real time**, so an hour of audio transcribes
-in about seven minutes. The language is detected automatically, and when it is
-not English, Timbre offers an English translation as a second pass. Treat those
-translations as a way to navigate the material rather than as quotable text.
+After that, every time a recording finishes Timbre reads it to work out what is
+being spoken, then asks once what you want: a transcript, or a transcript and an
+English translation. The question names the language it heard, so the choice is
+made with that in front of you rather than after a first pass has run. You get a
+`.txt` next to the MP3, plus a `.srt` with timestamps.
+
+The language is settled by sampling three points in the recording and taking the
+most confident answer, not by listening to the opening seconds. A hearing that
+starts with silence, a jingle or an English introduction would otherwise pin the
+wrong language for the whole file, and every later pass would inherit the
+mistake.
+
+Measured on an M4: **7.5x faster than real time**, so an hour of audio
+transcribes in about eight minutes. Treat the English translations as a way to
+navigate the material rather than as quotable text.
 
 The point is not only convenience. Uploading audio to a cloud transcription
 service means handing the material to a third party; here nothing leaves the

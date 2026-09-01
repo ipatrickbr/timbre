@@ -118,6 +118,14 @@ final class ConversionPanel {
         status?.stringValue = t("transcribe.starting")
     }
 
+    /// Shown while whisper samples the recording to work out what is being
+    /// spoken. There is no percentage to report, so the bar just sweeps.
+    func startDetection() {
+        title?.stringValue = t("detect.title")
+        bar?.fraction = 0
+        status?.stringValue = t("detect.status")
+    }
+
     func update(fraction: Double, remaining: TimeInterval?) {
         bar?.fraction = fraction
         let pct = Int((fraction * 100).rounded())
@@ -430,33 +438,36 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Asks whether to transcribe, then finishes up. Transcription reads the
-    /// untouched WAV, which is better input than the MP3 we just encoded, so
-    /// the file is only discarded afterwards.
+    /// Everything that happens after the MP3 exists: make sure the models are
+    /// here, work out the language, ask once, then run the passes that were
+    /// asked for. Transcription reads the untouched WAV, which is better input
+    /// than the MP3 we just encoded, so the file is only discarded afterwards.
     private func offerTranscription(wav: URL, mp3: URL, seconds: Double) {
-        guard Transcriber.hasEngine, askTranscribe(seconds: seconds) else {
-            busy = false
-            showIdle()
-            try? FileManager.default.removeItem(at: wav)
-            NSWorkspace.shared.activateFileViewerSelecting([mp3])
+        guard Transcriber.hasEngine else {
+            finishWithoutTranscript(wav: wav, mp3: mp3)
             return
         }
 
-        // The engine ships with the app but the language models do not, so the
-        // first transcription fetches them.
-        guard Transcriber.model != nil else {
-            downloadModels(wav: wav, mp3: mp3, seconds: seconds)
+        // Nothing can be said about the recording until the models are here, so
+        // on a fresh machine this is the one question that has to come first.
+        // A machine that only lacks the voice activity model is a different
+        // case: under a megabyte is not worth interrupting anyone for.
+        guard ModelDownloader.missing.isEmpty else {
+            let topUp = ModelDownloader.missingBytes < 50_000_000
+            if !topUp, !askTranscribe(seconds: seconds) {
+                finishWithoutTranscript(wav: wav, mp3: mp3)
+                return
+            }
+            downloadModels(wav: wav, mp3: mp3, seconds: seconds, quietly: topUp)
             return
         }
-        runTranscription(wav: wav, mp3: mp3, seconds: seconds)
+
+        identifyThenAsk(wav: wav, mp3: mp3, seconds: seconds)
     }
 
-    private func downloadModels(wav: URL, mp3: URL, seconds: Double) {
-        guard askDownload() else {
-            busy = false
-            showIdle()
-            try? FileManager.default.removeItem(at: wav)
-            NSWorkspace.shared.activateFileViewerSelecting([mp3])
+    private func downloadModels(wav: URL, mp3: URL, seconds: Double, quietly: Bool) {
+        if !quietly, !askDownload() {
+            finishWithoutTranscript(wav: wav, mp3: mp3)
             return
         }
 
@@ -474,16 +485,54 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.downloader = nil
             self.conversion.close()
-            guard ok, Transcriber.model != nil else {
-                self.busy = false
-                self.showIdle()
-                try? FileManager.default.removeItem(at: wav)
-                NSWorkspace.shared.activateFileViewerSelecting([mp3])
+            // A failed top-up is survivable: the speech models are already
+            // here, and transcription without voice activity detection is
+            // worse but still useful.
+            guard ok || quietly, Transcriber.model != nil else {
+                self.finishWithoutTranscript(wav: wav, mp3: mp3)
                 self.showError(t("error.download.title"), t("error.download.body"))
                 return
             }
-            self.runTranscription(wav: wav, mp3: mp3, seconds: seconds)
+            self.identifyThenAsk(wav: wav, mp3: mp3, seconds: seconds)
         })
+    }
+
+    /// Works out what is being spoken before asking anything. This used to
+    /// happen the other way round: the question about an English version came
+    /// only after a full pass had finished, because the language was read off
+    /// that pass. Now one question covers both decisions.
+    private func identifyThenAsk(wav: URL, mp3: URL, seconds: Double) {
+        conversion.show(fileName: mp3.lastPathComponent)
+        conversion.startDetection()
+        sweep(seconds: seconds)
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let prepared = Transcriber.prepare(audio: wav)
+            let language = prepared.flatMap {
+                Transcriber.detectLanguage(prepared: $0, seconds: seconds)
+            }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.stopTicker()
+                self.conversion.close()
+                guard let prepared else {
+                    self.finishWithoutTranscript(wav: wav, mp3: mp3)
+                    self.showError(t("error.transcribe.title"), t("error.transcribe.body"))
+                    return
+                }
+                switch self.askWhatToDo(language: language, seconds: seconds) {
+                case .nothing:
+                    try? FileManager.default.removeItem(at: prepared)
+                    self.finishWithoutTranscript(wav: wav, mp3: mp3)
+                case .transcribe:
+                    self.runTranscription(prepared: prepared, wav: wav, mp3: mp3, seconds: seconds,
+                                          language: language, thenTranslate: false)
+                case .transcribeAndTranslate:
+                    self.runTranscription(prepared: prepared, wav: wav, mp3: mp3, seconds: seconds,
+                                          language: language, thenTranslate: true)
+                }
+            }
+        }
     }
 
     /// Asked once, before the first transcription on a machine.
@@ -491,9 +540,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = t("ask.download.title")
-        // A plain "2 GB" reads better than a byte formatter, which follows the
-        // region and can print a decimal comma inside an English sentence.
-        alert.informativeText = t("ask.download.body")
+        alert.informativeText = String(format: t("ask.download.body"),
+                                       ModelDownloader.missingDescription)
         alert.alertStyle = .informational
         if let icon = NSApp.applicationIconImage { alert.icon = icon }
         alert.addButton(withTitle: t("ask.download.yes"))
@@ -501,29 +549,48 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    /// Kept separate from the prompt so the progress behaviour can be exercised
-    /// without a modal in the way.
-    func runTranscription(wav: URL, mp3: URL, seconds: Double) {
+    private enum Choice { case transcribe, transcribeAndTranslate, nothing }
+
+    /// One question instead of two. Whisper has already said what it is
+    /// hearing, so the English version is offered in the same breath rather
+    /// than after a first pass has run.
+    private func askWhatToDo(language: String?, seconds: Double) -> Choice {
+        NSApp.activate(ignoringOtherApps: true)
+        let estimate = humanDuration(seconds / 6)
+        let translatable = language != nil && language != "en" && Transcriber.canTranslate
+
+        let alert = NSAlert()
+        alert.messageText = t("ask.transcribe.title")
+        if let language, let name = Locale.current.localizedString(forLanguageCode: language) {
+            let shown = name.prefix(1).uppercased() + name.dropFirst()
+            alert.informativeText = String(format: t("ask.transcribe.body.known"), shown, estimate)
+        } else {
+            alert.informativeText = String(format: t("ask.transcribe.body"), estimate)
+        }
+        alert.alertStyle = .informational
+        if let icon = NSApp.applicationIconImage { alert.icon = icon }
+        alert.addButton(withTitle: t("ask.transcribe.yes"))
+        if translatable { alert.addButton(withTitle: t("ask.transcribe.translated")) }
+        alert.addButton(withTitle: t("ask.transcribe.no"))
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return .transcribe
+        case .alertSecondButtonReturn: return translatable ? .transcribeAndTranslate : .nothing
+        default: return .nothing
+        }
+    }
+
+    /// Kept separate from the prompts so the progress behaviour can be
+    /// exercised without a modal in the way.
+    func runTranscription(prepared: URL, wav: URL, mp3: URL, seconds: Double,
+                          language: String?, thenTranslate: Bool) {
         conversion.show(fileName: mp3.lastPathComponent)
         conversion.startTranscription()
-        let started = Date()
-        reportedProgress = 0
-
-        // whisper.cpp only reports after each 30-second chunk of audio, which
-        // leaves the bar frozen in between. We move it along on the clock and
-        // snap to the real figure whenever one arrives.
-        let estimate = max(seconds / 8, 4)
-        transcriptionTicker = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            let elapsed = Date().timeIntervalSince(started)
-            let byClock = min(elapsed / estimate, 0.97)
-            let shown = max(self.reportedProgress, byClock)
-            let remaining = shown > 0.02 ? elapsed / shown - elapsed : estimate
-            self.conversion.update(fraction: shown, remaining: remaining)
-        }
+        sweep(seconds: seconds)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let outcome = Transcriber.run(audio: wav, outputBase: mp3.deletingPathExtension()) { fraction in
+            let ok = Transcriber.run(prepared: prepared, outputBase: mp3.deletingPathExtension(),
+                                     language: language) { fraction in
                 DispatchQueue.main.async { self?.reportedProgress = fraction }
             }
             DispatchQueue.main.async {
@@ -531,57 +598,67 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 self.stopTicker()
                 self.conversion.close()
 
-                guard outcome.succeeded else {
+                guard ok else {
+                    try? FileManager.default.removeItem(at: prepared)
                     self.finishUp(wav: wav, mp3: mp3, extras: [])
                     self.showError(t("error.transcribe.title"), t("error.transcribe.body"))
                     return
                 }
 
                 let transcript = mp3.deletingPathExtension().appendingPathExtension("txt")
-                // Whisper can render a non-English recording into English, which
-                // is a second pass over the same audio.
-                if let language = outcome.language, language != "en", Transcriber.canTranslate,
-                   self.askTranslate(language: language, seconds: seconds) {
-                    self.runTranslation(wav: wav, mp3: mp3, seconds: seconds, transcript: transcript)
+                if thenTranslate {
+                    self.runTranslation(prepared: prepared, wav: wav, mp3: mp3, seconds: seconds,
+                                        transcript: transcript)
                 } else {
+                    try? FileManager.default.removeItem(at: prepared)
                     self.finishUp(wav: wav, mp3: mp3, extras: [transcript])
                 }
             }
         }
     }
 
-    private func runTranslation(wav: URL, mp3: URL, seconds: Double, transcript: URL) {
+    private func runTranslation(prepared: URL, wav: URL, mp3: URL, seconds: Double, transcript: URL) {
         let english = mp3.deletingPathExtension().path + " (English)"
         conversion.show(fileName: mp3.lastPathComponent)
         conversion.startTranslation()
-        let started = Date()
-        reportedProgress = 0
-
-        let estimate = max(seconds / 8, 4)
-        transcriptionTicker = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            let elapsed = Date().timeIntervalSince(started)
-            let shown = max(self.reportedProgress, min(elapsed / estimate, 0.97))
-            let remaining = shown > 0.02 ? elapsed / shown - elapsed : estimate
-            self.conversion.update(fraction: shown, remaining: remaining)
-        }
+        sweep(seconds: seconds)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let outcome = Transcriber.run(audio: wav, outputBase: URL(fileURLWithPath: english),
-                                          translate: true) { fraction in
+            // Left on auto: the translating model is not the one that detected
+            // the language, and it does better deciding for itself than being
+            // handed a second opinion.
+            let ok = Transcriber.run(prepared: prepared, outputBase: URL(fileURLWithPath: english),
+                                     language: nil, translate: true) { fraction in
                 DispatchQueue.main.async { self?.reportedProgress = fraction }
             }
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.stopTicker()
                 self.conversion.close()
+                try? FileManager.default.removeItem(at: prepared)
                 var extras = [transcript]
                 let englishFile = URL(fileURLWithPath: english + ".txt")
-                if outcome.succeeded, FileManager.default.fileExists(atPath: englishFile.path) {
+                if ok, FileManager.default.fileExists(atPath: englishFile.path) {
                     extras.append(englishFile)
                 }
                 self.finishUp(wav: wav, mp3: mp3, extras: extras)
             }
+        }
+    }
+
+    /// whisper.cpp only reports after each chunk of audio, which leaves the bar
+    /// frozen in between. We move it along on the clock and snap to the real
+    /// figure whenever one arrives.
+    private func sweep(seconds: Double) {
+        reportedProgress = 0
+        let started = Date()
+        let estimate = max(seconds / 6, 4)
+        transcriptionTicker = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let elapsed = Date().timeIntervalSince(started)
+            let shown = max(self.reportedProgress, min(elapsed / estimate, 0.97))
+            let remaining = shown > 0.02 ? elapsed / shown - elapsed : estimate
+            self.conversion.update(fraction: shown, remaining: remaining)
         }
     }
 
@@ -600,30 +677,39 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.activateFileViewerSelecting([mp3] + existing)
     }
 
-    /// Offers an English version when the recording turned out to be in another
-    /// language. Costs a second pass, so the estimate is shown up front.
-    private func askTranslate(language: String, seconds: Double) -> Bool {
-        NSApp.activate(ignoringOtherApps: true)
-        let name = Locale.current.localizedString(forLanguageCode: language) ?? language
-        let alert = NSAlert()
-        alert.messageText = t("ask.translate.title")
-        alert.informativeText = String(format: t("ask.translate.body"),
-                                       name, humanDuration(seconds / 8))
-        alert.alertStyle = .informational
-        if let icon = NSApp.applicationIconImage { alert.icon = icon }
-        alert.addButton(withTitle: t("ask.translate.yes"))
-        alert.addButton(withTitle: t("ask.translate.no"))
-        return alert.runModal() == .alertFirstButtonReturn
+    private func finishWithoutTranscript(wav: URL, mp3: URL) {
+        finishUp(wav: wav, mp3: mp3, extras: [])
     }
 
-    /// Transcription runs at roughly eight times real time on Apple Silicon,
-    /// which is close enough to set an expectation before the person commits.
+    /// Entry point for `--transcribe`, which replays the post-recording flow
+    /// against a file that already exists. The audio is copied first, because
+    /// that flow deletes the working file when it is done and the original is
+    /// not ours to delete.
+    func transcribeExisting(_ audio: URL) {
+        let working = audio.deletingPathExtension().appendingPathExtension("timbre-working.wav")
+        guard let converted = Transcriber.prepare(audio: audio),
+              (try? FileManager.default.moveItem(at: converted, to: working)) != nil else {
+            showError(t("error.transcribe.title"), t("error.transcribe.body"))
+            NSApp.terminate(nil)
+            return
+        }
+        busy = true
+        offerTranscription(wav: working, mp3: audio, seconds: duration(of: audio))
+    }
+
+    private func duration(of audio: URL) -> Double {
+        let asset = AVURLAsset(url: audio)
+        let seconds = CMTimeGetSeconds(asset.duration)
+        return seconds.isFinite && seconds > 0 ? seconds : 0
+    }
+
+    /// Only reached on a machine that has yet to download anything, where the
+    /// language is still unknown.
     private func askTranscribe(seconds: Double) -> Bool {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = t("ask.transcribe.title")
-        alert.informativeText = String(format: t("ask.transcribe.body"),
-                                       humanDuration(seconds / 8))
+        alert.informativeText = String(format: t("ask.transcribe.body"), humanDuration(seconds / 6))
         alert.alertStyle = .informational
         if let icon = NSApp.applicationIconImage { alert.icon = icon }
         alert.addButton(withTitle: t("ask.transcribe.yes"))
@@ -679,11 +765,19 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
 }
 
-func runMenuBar() -> Never {
+func runMenuBar(transcribing existing: URL? = nil) -> Never {
     let app = NSApplication.shared
     let controller = MenuBarController()
     app.delegate = controller
     app.setActivationPolicy(.accessory)
+    if let existing {
+        // Everything a recording goes through once the MP3 exists, run against
+        // a file that is already on disk. This is how the flow gets exercised
+        // without putting a sound through the speakers to record.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            controller.transcribeExisting(existing)
+        }
+    }
     app.run()
     exit(0)
 }

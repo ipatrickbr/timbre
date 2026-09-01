@@ -45,6 +45,12 @@ while i < args.count {
         break   // kept for compatibility: audible is already the default
     case "--menubar":
         forceMenuBar = true
+    case "--transcribe":
+        // Replays the post-recording flow against an existing file, so the
+        // dialogs and passes can be checked without recording anything.
+        i += 1
+        guard i < args.count else { exit(2) }
+        runMenuBar(transcribing: URL(fileURLWithPath: args[i]).standardizedFileURL)
     case "--check":
         let granted = CGPreflightScreenCaptureAccess()
         print(t("check.permission"), granted ? t("check.granted") : t("check.missing"))
