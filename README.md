@@ -116,12 +116,16 @@ acceleration. Install it once:
 ./vendor/build-whisper.sh
 ```
 
-That builds the engine and downloads three models into `~/Library/Application
-Support/Timbre/whisper`: `large-v3-turbo` (~1.5 GB) for transcription, `small`
-(~470 MB) for translation, and `silero-v5.1.2` (under 1 MB) for voice activity
-detection. The turbo models are trained for transcription only and silently
-return the original language when asked to translate, which is why a second
-model is needed.
+That builds the engine and downloads four models into `~/Library/Application
+Support/Timbre/whisper`: `large-v3-turbo` (~1.5 GB) for transcription,
+`large-v3` (~2.9 GB) for translation, `small` (~470 MB) for language
+detection, and `silero-v5.1.2` (under 1 MB) for voice activity detection. The
+turbo models are trained for transcription only and silently return the
+original language when asked to translate, so a separate model handles
+translation — full-size rather than a smaller one, because translation quality
+drops off faster than transcription quality does as a model shrinks. Language
+detection only needs to read a few seconds of audio, so it uses `small`
+instead of loading the 3 GB model for that.
 
 The voice activity model is the one that stops whisper hallucinating. Handed a
 silent stretch it will invent speech to fill it, repeating the last sentence it
@@ -142,9 +146,13 @@ starts with silence, a jingle or an English introduction would otherwise pin the
 wrong language for the whole file, and every later pass would inherit the
 mistake.
 
-Measured on an M4: **7.5x faster than real time**, so an hour of audio
-transcribes in about eight minutes. Treat the English translations as a way to
-navigate the material rather than as quotable text.
+Measured on an M4: transcription runs **7.5x faster than real time**, so an
+hour of audio transcribes in about eight minutes. Translation is slower —
+about 2.7x real time on the same machine, since it runs on the full large-v3
+model rather than a smaller one — but reads far more coherently for it.
+Machine translation of a spoken interview is still not the same thing as a
+human one, so treat it as a strong first pass rather than a final quote,
+particularly for names and numbers.
 
 The point is not only convenience. Uploading audio to a cloud transcription
 service means handing the material to a third party; here nothing leaves the

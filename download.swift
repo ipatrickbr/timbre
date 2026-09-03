@@ -19,12 +19,17 @@ final class ModelDownloader: NSObject, URLSessionDownloadDelegate {
         }
     }
 
-    /// Transcription runs on the turbo model; translation needs a second one,
-    /// because turbo returns the source language when asked to translate. The
-    /// third is the voice activity model, which keeps whisper away from the
-    /// silent stretches it would otherwise fill with invented speech.
+    /// Transcription runs on the turbo model. Translation runs on full
+    /// large-v3 instead — turbo quietly returns the source language when
+    /// asked to translate, and the smaller models translate noticeably worse
+    /// than they transcribe. `small` stays for language detection, where
+    /// loading a 3 GB model just to sample a few seconds of audio would be a
+    /// poor trade. The last is the voice activity model, which keeps whisper
+    /// away from the silent stretches it would otherwise fill with invented
+    /// speech.
     static let required = [
         Model(name: "large-v3-turbo", expectedBytes: 1_624_555_275),
+        Model(name: "large-v3", expectedBytes: 3_095_033_483),
         Model(name: "small", expectedBytes: 487_601_967),
         Model(name: "silero-v5.1.2", expectedBytes: 885_098, repository: "ggml-org/whisper-vad"),
     ]

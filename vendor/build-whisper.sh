@@ -8,9 +8,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 MODEL="${1:-large-v3-turbo}"
-# The turbo models transcribe beautifully but cannot translate, so a second,
-# smaller model is installed alongside for English translation.
-TRANSLATION_MODEL="small"
+# The turbo models transcribe beautifully but cannot translate, so a second
+# model is installed alongside for English translation. Full large-v3 is used
+# rather than a smaller model because translation quality lags transcription
+# quality noticeably at smaller sizes. A third, small model handles language
+# detection, where loading 3 GB just to sample a few seconds would be wasteful.
+TRANSLATION_MODEL="large-v3"
+DETECTION_MODEL="small"
 VAD_MODEL="silero-v5.1.2"
 DEST="$HOME/Library/Application Support/Timbre/whisper"
 CMAKE_VERSION="4.4.3"
@@ -64,8 +68,13 @@ if [[ ! -f "models/ggml-$MODEL.bin" ]]; then
 fi
 
 if [[ "$MODEL" == *turbo* && ! -f "models/ggml-$TRANSLATION_MODEL.bin" ]]; then
-    echo "Downloading the $TRANSLATION_MODEL model for translation (~470 MB)..."
+    echo "Downloading the $TRANSLATION_MODEL model for translation (~3 GB)..."
     bash models/download-ggml-model.sh "$TRANSLATION_MODEL" >/dev/null
+fi
+
+if [[ "$MODEL" == *turbo* && ! -f "models/ggml-$DETECTION_MODEL.bin" ]]; then
+    echo "Downloading the $DETECTION_MODEL model for language detection (~470 MB)..."
+    bash models/download-ggml-model.sh "$DETECTION_MODEL" >/dev/null
 fi
 
 echo "Installing..."
@@ -86,6 +95,7 @@ for binary in "$DEST/whisper-cli" "$DEST"/*.dylib; do
 done
 cp "models/ggml-$MODEL.bin" "$DEST/models/"
 [[ -f "models/ggml-$TRANSLATION_MODEL.bin" ]] && cp "models/ggml-$TRANSLATION_MODEL.bin" "$DEST/models/"
+[[ -f "models/ggml-$DETECTION_MODEL.bin" ]] && cp "models/ggml-$DETECTION_MODEL.bin" "$DEST/models/"
 
 cd ..
 echo "Transcription ready: $DEST"

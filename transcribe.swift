@@ -43,9 +43,13 @@ enum Transcriber {
         }
     }
 
-    /// Model used for transcription: the largest installed, which is the most
-    /// accurate.
-    static var model: URL? { largest(installedModels) }
+    /// Model used for transcription: turbo specifically, not just "the
+    /// largest installed" — that stopped being the same thing once a bigger
+    /// model was added for translation, and turbo is both faster and tuned
+    /// against by the voice-activity and repetition fixes.
+    static var model: URL? {
+        installedModels.first { $0.lastPathComponent.contains("turbo") } ?? largest(installedModels)
+    }
 
     /// Model used for translating into English. The turbo models are trained
     /// for transcription only and quietly return the original language when
@@ -234,6 +238,14 @@ enum Transcriber {
         max(4, ProcessInfo.processInfo.activeProcessorCount - 2)
     }
 
+    /// Translation runs on the much larger large-v3 model. At the full thread
+    /// count above, translating a real interview visibly slowed the whole
+    /// Mac down while it ran in the background — this leaves it more room,
+    /// at the cost of some speed.
+    private static var translationThreadCount: Int {
+        max(2, ProcessInfo.processInfo.activeProcessorCount / 2)
+    }
+
     /// Writes `<outputBase>.txt` and `<outputBase>.srt`. With `translate` the
     /// output is English regardless of what was spoken.
     @discardableResult
@@ -249,7 +261,7 @@ enum Transcriber {
             "-m", engine.path,
             "-f", prepared.path,
             "-l", language ?? "auto",
-            "-t", String(threadCount),
+            "-t", String(translate ? translationThreadCount : threadCount),
             "-otxt", "-osrt",
             "-of", outputBase.path,
             "-sns",                    // drop [music], [applause] and friends
@@ -289,9 +301,28 @@ enum Transcriber {
         }
 
         do { try task.run() } catch { return false }
+        // Translating with large-v3 is heavy enough to make the whole Mac
+        // feel sluggish while it runs. Backgrounding it asks the system to
+        // favour whatever the person is actually doing over this — it just
+        // takes a little longer to finish.
+        if translate { lowerPriority(of: task.processIdentifier) }
         task.waitUntilExit()
         pipe.fileHandleForReading.readabilityHandler = nil
         if task.terminationStatus == 0 { progress(1) }
         return task.terminationStatus == 0
+    }
+
+    /// Best-effort: asks the kernel scheduler to treat a running process as
+    /// background work, so it stops competing with whatever is in front of
+    /// the person. Silently does nothing if `taskpolicy` is missing.
+    private static func lowerPriority(of pid: Int32) {
+        let tool = "/usr/sbin/taskpolicy"
+        guard FileManager.default.isExecutableFile(atPath: tool) else { return }
+        let nice = Process()
+        nice.executableURL = URL(fileURLWithPath: tool)
+        nice.arguments = ["-b", "-p", String(pid)]
+        nice.standardOutput = FileHandle.nullDevice
+        nice.standardError = FileHandle.nullDevice
+        try? nice.run()
     }
 }

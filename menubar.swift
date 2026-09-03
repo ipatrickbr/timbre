@@ -556,7 +556,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     /// than after a first pass has run.
     private func askWhatToDo(language: String?, seconds: Double) -> Choice {
         NSApp.activate(ignoringOtherApps: true)
-        let estimate = humanDuration(seconds / 6)
+        let estimate = humanDuration(seconds / Self.transcriptionRealtimeFactor)
         let translatable = language != nil && language != "en" && Transcriber.canTranslate
 
         let alert = NSAlert()
@@ -621,7 +621,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         let english = mp3.deletingPathExtension().path + " (English)"
         conversion.show(fileName: mp3.lastPathComponent)
         conversion.startTranslation()
-        sweep(seconds: seconds)
+        // Translation runs on the full large-v3 model rather than turbo, and
+        // is noticeably slower — the transcription pace would fill the bar
+        // to 97% long before the real work is anywhere near done.
+        sweep(seconds: seconds, realtimeFactor: Self.translationRealtimeFactor)
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             // Left on auto: the translating model is not the one that detected
@@ -646,13 +649,27 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Turbo measures at about 7.5x real time on an M4; kept a bit under that
+    /// here as a safety margin for slower machines. Split out from the
+    /// translation figure below because the two passes now run on differently
+    /// sized models, at very different speeds.
+    private static let transcriptionRealtimeFactor: Double = 6
+
+    /// Measured on an M4 translating with large-v3: about 2.7x real time, well
+    /// under turbo's 6x. Set slightly below that measurement on purpose — the
+    /// clock-based estimate below only matters before whisper's own progress
+    /// reports catch up to it, and predicting a bit slower than reality means
+    /// that handoff happens smoothly instead of the bar pinning at 97% while
+    /// the real pass keeps working underneath it.
+    private static let translationRealtimeFactor: Double = 2.4
+
     /// whisper.cpp only reports after each chunk of audio, which leaves the bar
     /// frozen in between. We move it along on the clock and snap to the real
     /// figure whenever one arrives.
-    private func sweep(seconds: Double) {
+    private func sweep(seconds: Double, realtimeFactor: Double = MenuBarController.transcriptionRealtimeFactor) {
         reportedProgress = 0
         let started = Date()
-        let estimate = max(seconds / 6, 4)
+        let estimate = max(seconds / realtimeFactor, 4)
         transcriptionTicker = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
             guard let self else { return }
             let elapsed = Date().timeIntervalSince(started)
