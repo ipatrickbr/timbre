@@ -152,16 +152,27 @@ final class ConversionPanel {
 final class MenuBarController: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private let recorder = TapRecorder()
+    private let micRecorder = MicRecorder()
     private let conversion = ConversionPanel()
     private var ticker: Timer?
     private var startedAt = Date()
     private var currentWAV: URL?
+    private var currentMicWAV: URL?
     private var busy = false
     private var startSound: AVAudioPlayer?
     private var transcriptionTicker: Timer?
     private var downloader: ModelDownloader?
     private var reportedProgress: Double = 0
     private var stopSound: AVAudioPlayer?
+
+    /// Off by default: most recordings are of something the person is just
+    /// listening to, where their own microphone would add nothing but their
+    /// own room noise. Remembered across launches once turned on for an
+    /// interview.
+    private var includeMicrophone: Bool {
+        get { UserDefaults.standard.bool(forKey: "includeMicrophone") }
+        set { UserDefaults.standard.set(newValue, forKey: "includeMicrophone") }
+    }
 
     private var destinationFolder: URL {
         let base = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
@@ -301,6 +312,14 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
+        let mic = NSMenuItem(title: t("menu.mic"), action: #selector(toggleMic), keyEquivalent: "")
+        mic.target = self
+        mic.state = includeMicrophone ? .on : .off
+        mic.isEnabled = !recorder.isRecording
+        menu.addItem(mic)
+
+        menu.addItem(.separator())
+
         let folder = NSMenuItem(title: t("menu.folder"), action: #selector(openFolder), keyEquivalent: "")
         folder.target = self
         menu.addItem(folder)
@@ -324,14 +343,23 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
 
     @objc private func togglePause() {
+        // The microphone track is paused in lockstep with the system audio:
+        // both skip writing for the same stretch, so they stay aligned once
+        // mixed together afterwards.
         if recorder.isPaused {
             recorder.resume()
+            if currentMicWAV != nil { micRecorder.resume() }
             showRecording()
         } else {
             recorder.pause()
+            if currentMicWAV != nil { micRecorder.pause() }
             showPaused()
         }
         updateTitle()
+    }
+
+    @objc private func toggleMic() {
+        includeMicrophone.toggle()
     }
 
     @objc private func openFolder() {
@@ -352,7 +380,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = t("ask.title")
-        alert.informativeText = t("ask.body")
+        alert.informativeText = t(includeMicrophone ? "ask.body.mic" : "ask.body")
         alert.alertStyle = .informational
         if let icon = NSApp.applicationIconImage { alert.icon = icon }
         alert.addButton(withTitle: t("ask.listen"))
@@ -367,6 +395,30 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     private func startRecording() {
         guard let mute = askRecordingMode() else { return }
+        guard includeMicrophone else {
+            startRecordingCore(mute: mute, withMic: false)
+            return
+        }
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            startRecordingCore(mute: mute, withMic: true)
+        case .notDetermined:
+            // Asked here rather than at launch, so the system prompt only
+            // ever shows up right before it's actually needed.
+            MicRecorder.requestPermission { [weak self] granted in
+                self?.startRecordingCore(mute: mute, withMic: granted)
+                if !granted { self?.includeMicrophone = false }
+            }
+        default:
+            // Denied or restricted: recording still proceeds, just without
+            // the microphone, rather than blocking the person entirely.
+            includeMicrophone = false
+            showError(t("error.mic.title"), t("error.mic.body"))
+            startRecordingCore(mute: mute, withMic: false)
+        }
+    }
+
+    private func startRecordingCore(mute: Bool, withMic: Bool) {
         do {
             try FileManager.default.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
             let stamp = DateFormatter()
@@ -374,6 +426,21 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             let wav = destinationFolder
                 .appendingPathComponent("\(t("filename.prefix")) \(stamp.string(from: Date())).wav")
             try recorder.start(outputURL: wav, mute: mute)
+
+            if withMic {
+                let micWAV = wav.deletingPathExtension().appendingPathExtension("timbre-mic.wav")
+                do {
+                    try micRecorder.start(outputURL: micWAV)
+                    currentMicWAV = micWAV
+                } catch {
+                    // The system audio is still recording fine; losing the
+                    // microphone track alone isn't worth stopping over.
+                    currentMicWAV = nil
+                }
+            } else {
+                currentMicWAV = nil
+            }
+
             // The tap excludes Timbre's own process, so this cue never lands
             // in the recording.
             play(startSound)
@@ -395,16 +462,35 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
         let seconds: Double
         do { seconds = try recorder.stop(); play(stopSound) } catch {
+            if currentMicWAV != nil { try? micRecorder.stop() }
+            currentMicWAV = nil
             showIdle()
             showError(t("error.failed"), "\(error)")
             return
         }
-        guard let wav = currentWAV else { showIdle(); return }
+
+        // A failed microphone stop isn't worth surfacing on its own: the
+        // system audio is already safe, and the mix step below simply skips
+        // a track that never got written.
+        let micWAV = currentMicWAV
+        currentMicWAV = nil
+        // Read before stop() clears anything, for lining the two tracks up
+        // when mixing — see MicRecorder.mix.
+        let systemFirstFrame = recorder.firstFrameAt
+        let micFirstFrame = micRecorder.firstFrameAt
+        if micWAV != nil { try? micRecorder.stop() }
+
+        guard let wav = currentWAV else {
+            if let micWAV { try? FileManager.default.removeItem(at: micWAV) }
+            showIdle()
+            return
+        }
         currentWAV = nil
 
         guard seconds > 0 else {
             showIdle()
             try? FileManager.default.removeItem(at: wav)
+            if let micWAV { try? FileManager.default.removeItem(at: micWAV) }
             showError(t("error.nothing.title"), t("error.nothing.body"))
             return
         }
@@ -416,6 +502,23 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         let startedConversion = Date()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // Fold the microphone track in before encoding. If it fails, the
+            // system-only recording is still there — better than losing the
+            // whole thing over a mixing error.
+            if let micWAV, FileManager.default.fileExists(atPath: micWAV.path) {
+                let mixed = wav.deletingPathExtension().appendingPathExtension("timbre-mixed.wav")
+                let mixOK = try? MicRecorder.mix(system: wav, mic: micWAV, into: mixed,
+                                                 systemFirstFrame: systemFirstFrame,
+                                                 micFirstFrame: micFirstFrame)
+                if mixOK != nil {
+                    try? FileManager.default.removeItem(at: wav)
+                    try? FileManager.default.moveItem(at: mixed, to: wav)
+                } else {
+                    try? FileManager.default.removeItem(at: mixed)
+                }
+                try? FileManager.default.removeItem(at: micWAV)
+            }
+
             let ok = Self.encodeMP3(from: wav, to: mp3) { fraction in
                 let elapsed = Date().timeIntervalSince(startedConversion)
                 let remaining = fraction > 0.02 ? elapsed / fraction - elapsed : nil

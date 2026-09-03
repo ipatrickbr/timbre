@@ -86,6 +86,14 @@ Recordings land in a **Timbre** folder on the Desktop.
 Two short marimba cues mark the start (rising) and the end (falling) of a
 recording. They are excluded from the capture, so they never end up in the file.
 
+**Include microphone**, in the menu, adds your own voice to the recording —
+off by default, since most recordings are of something you're just listening
+to, where your own microphone would add nothing but room noise. Turn it on
+for interviews and calls: the system audio tap only ever hears what plays
+through the Mac's own output, so on a call the other side is captured but
+your own voice never is unless this is on. It asks for microphone access the
+first time, and stays on across recordings until turned off again.
+
 ### From the terminal
 
 ```bash

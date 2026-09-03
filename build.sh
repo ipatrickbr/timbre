@@ -31,7 +31,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>NSAudioCaptureUsageDescription</key>
     <string>Timbre needs this access to record the audio playing on your Mac.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Timbre needs this access to record the audio playing on your Mac.</string>
+    <string>Timbre needs this access to include your own voice when you turn on "Include microphone" for an interview.</string>
 </dict>
 </plist>
 PLIST
@@ -42,7 +42,7 @@ PLIST
 # Without an explicit target, swiftc stamps the machine's own OS version as the
 # minimum, and the app then refuses to launch on anything older.
 DEPLOYMENT_TARGET="14.4"
-SOURCES="main.swift tap.swift sck.swift menubar.swift transcribe.swift download.swift"
+SOURCES="main.swift tap.swift sck.swift mic.swift menubar.swift transcribe.swift download.swift"
 FRAMEWORKS="-framework CoreAudio -framework AudioToolbox -framework AVFoundation
             -framework ScreenCaptureKit -framework AppKit"
 

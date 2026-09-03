@@ -13,11 +13,13 @@
 "menu.resume" = "Retomar gravação";
 "menu.finish" = "Finalizar e salvar";
 "menu.folder" = "Abrir pasta das gravações";
+"menu.mic" = "Incluir microfone";
 "menu.quit" = "Sair";
 
 /* Diálogo de início */
 "ask.title" = "Como você quer gravar?";
 "ask.body" = "O Timbre captura o som por dentro do Mac, sem microfone. O volume da saída não altera o que é gravado.";
+"ask.body.mic" = "O Timbre captura o som por dentro do Mac, além do seu microfone — útil em entrevistas, onde só o outro lado ficaria gravado. O volume da saída não altera o que é gravado.";
 "ask.listen" = "Gravar ouvindo";
 "ask.mute" = "Gravar em silêncio";
 "ask.cancel" = "Cancelar";
@@ -43,6 +45,8 @@
 "error.nothing.body" = "Nenhum som estava tocando no Mac durante a gravação.";
 "error.mp3.title" = "Não consegui converter para MP3";
 "error.mp3.body" = "O áudio foi salvo em WAV, sem perdas: %@";
+"error.mic.title" = "Acesso ao microfone negado";
+"error.mic.body" = "Ative em Ajustes do Sistema › Privacidade e Segurança › Microfone se quiser sua própria voz na gravação. Esta gravação vai continuar sem ele.";
 
 /* Linha de comando */
 "cli.error" = "erro:";

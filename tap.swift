@@ -82,6 +82,13 @@ final class TapRecorder: @unchecked Sendable {
     private(set) var isRecording = false
     private var paused = false
 
+    /// When the first real frame landed — not when `start()` was called. The
+    /// tap idles until something actually plays, so on a recording that
+    /// begins before a call connects, this can be well after `start()`. Read
+    /// alongside `MicRecorder`'s own timestamp to line the two tracks up
+    /// when mixing, since the microphone never idles the same way.
+    private(set) var firstFrameAt: Date?
+
     /// While paused the IOProc keeps running but nothing is written: the paused
     /// stretch stays out of the file and recording resumes into the same MP3.
     var isPaused: Bool {
@@ -148,6 +155,7 @@ final class TapRecorder: @unchecked Sendable {
         frames = 0
         paused = false
         writeFailure = nil
+        firstFrameAt = nil
         sampleRate = inputFormat.sampleRate
         audioFile = try AVAudioFile(forWriting: outputURL,
                                     settings: [
@@ -173,6 +181,7 @@ final class TapRecorder: @unchecked Sendable {
             else { return }
             do {
                 try file.write(from: buffer)
+                if self.firstFrameAt == nil { self.firstFrameAt = Date() }
                 self.frames += Int64(buffer.frameLength)
             } catch { self.writeFailure = error }
         }, "registering the IOProc")

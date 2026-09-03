@@ -13,11 +13,13 @@
 "menu.resume" = "Resume recording";
 "menu.finish" = "Finish and save";
 "menu.folder" = "Open recordings folder";
+"menu.mic" = "Include microphone";
 "menu.quit" = "Quit";
 
 /* Start dialog */
 "ask.title" = "How do you want to record?";
 "ask.body" = "Timbre captures sound from inside your Mac, without a microphone. Output volume does not change what gets recorded.";
+"ask.body.mic" = "Timbre captures sound from inside your Mac, plus your microphone — useful for interviews, where only the other side would otherwise be recorded. Output volume does not change what gets recorded.";
 "ask.listen" = "Record while listening";
 "ask.mute" = "Record silently";
 "ask.cancel" = "Cancel";
@@ -43,6 +45,8 @@
 "error.nothing.body" = "No sound was playing on your Mac during the recording.";
 "error.mp3.title" = "Could not convert to MP3";
 "error.mp3.body" = "The audio was saved as lossless WAV: %@";
+"error.mic.title" = "Microphone access denied";
+"error.mic.body" = "Turn it on in System Settings › Privacy & Security › Microphone if you want your own voice in the recording. This recording will continue without it.";
 
 /* Command line */
 "cli.error" = "error:";
